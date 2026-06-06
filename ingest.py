@@ -27,6 +27,7 @@ from typing import Optional
 CHUNK_TARGET = 800      # target chunk size in characters
 CHUNK_OVERLAP = 150     # overlap between adjacent chunks in characters
 MIN_CHUNK_SIZE = 100    # discard chunks smaller than this (headers-only noise)
+CHUNK_HARD_CAP = 1200  # absolute maximum — any chunk above this is force-split
 
 # Separator hierarchy for recursive splitting (tried in order)
 # Level 1: ### heading  Level 2: #### heading  Level 3: blank line (paragraph)
@@ -75,11 +76,53 @@ def load_metadata(md_path: Path) -> dict:
 # Core recursive chunker
 # ---------------------------------------------------------------------------
 
+def _hard_split(text: str, header: str) -> list[str]:
+    """
+    Last-resort character-level split for chunks that still exceed CHUNK_HARD_CAP
+    after paragraph splitting (e.g. Darkwood table blocks with no blank lines).
+    Splits at the nearest sentence boundary ('. ') or falls back to raw character
+    position. Re-prepends the heading to each piece.
+
+    Args:
+        text:   The oversized chunk text (heading already included as first line).
+        header: The heading to prepend on continuation pieces.
+
+    Returns:
+        List of sub-chunk strings all under CHUNK_HARD_CAP.
+    """
+    if len(text) <= CHUNK_HARD_CAP:
+        return [text]
+
+    pieces = []
+    remaining = text
+    is_first = True
+
+    while len(remaining) > CHUNK_HARD_CAP:
+        split_at = CHUNK_HARD_CAP
+        # Try to find the last sentence boundary before the cap
+        boundary = remaining.rfind('. ', 0, CHUNK_HARD_CAP)
+        if boundary > CHUNK_HARD_CAP // 2:
+            split_at = boundary + 2  # include the '. '
+        piece = remaining[:split_at].strip()
+        if piece:
+            pieces.append(piece)
+        # Start continuation with heading prefix + overlap
+        overlap = remaining[max(0, split_at - CHUNK_OVERLAP):split_at].strip()
+        remaining = f"{header}\n{overlap}\n{remaining[split_at:].strip()}"
+        is_first = False
+
+    if remaining.strip():
+        pieces.append(remaining.strip())
+
+    return pieces
+
+
 def _split_by_paragraphs(text: str, header: str) -> list[str]:
     """
     Split a block of text at paragraph boundaries (double newlines).
     Re-prepend the originating heading to every sub-chunk so no chunk
-    loses its semantic label.
+    loses its semantic label. Strips any leading repeated heading line
+    from the body to prevent double-heading artifacts.
 
     Args:
         text:   The text content of a single section (heading already stripped).
@@ -88,6 +131,11 @@ def _split_by_paragraphs(text: str, header: str) -> list[str]:
     Returns:
         List of sub-chunk strings, each starting with the heading.
     """
+    # Strip leading repeated heading line (causes double-heading artifacts)
+    first_line = text.split('\n')[0].strip()
+    if HEADING_PATTERN.match(first_line):
+        text = text[len(first_line):].lstrip('\n')
+
     paragraphs = [p.strip() for p in re.split(r'\n\n+', text) if p.strip()]
     if not paragraphs:
         return []
@@ -206,9 +254,10 @@ def chunk_document(md_path: Path, metadata: dict) -> list[dict]:
             # Just right — emit as-is
             raw_chunks.append(section_text.strip())
         else:
-            # Too large — split at paragraph boundaries
+            # Too large — split at paragraph boundaries, then hard-cap if needed
             sub = _split_by_paragraphs(body, heading)
-            raw_chunks.extend(sub)
+            for s in sub:
+                raw_chunks.extend(_hard_split(s, heading))
 
     # Flush any remaining pending content
     if pending and len(pending.strip()) >= MIN_CHUNK_SIZE:
