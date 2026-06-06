@@ -1,0 +1,51 @@
+{
+  "document_metadata": {
+    "title": "Achievements Guide - Darkwood",
+    "author": "Wolvy",
+    "associated_game": "Darkwood (2017)",
+    "developer": "Acid Wizard Studio",
+    "category": "Achievements",
+    "description": "Comprehensive reference guide for all achievements in Darkwood. Covers prologue, story milestones, mutually exclusive paths, and ending-specific achievements.",
+    "achievements_covered": [
+      "Finished prologue",
+      "Kill the pig",
+      "Sleep in the grave",
+      "No sleep for the wicked",
+      "Wolf's path",
+      "Musician's path",
+      "Willpower",
+      "Chapter 2",
+      "Entertainer",
+      "Only ashes remain",
+      "Insatiable hunger",
+      "Merciful",
+      "Trapped villagers",
+      "Bliss",
+      "Burn them all"
+    ],
+    "chapters_covered": [
+      "Prologue",
+      "Chapter 1",
+      "Chapter 2",
+      "Epilogue"
+    ],
+    "tags": [
+      "achievements",
+      "trophies",
+      "darkwood",
+      "survival horror",
+      "endings",
+      "prologue",
+      "chapter 1",
+      "chapter 2",
+      "epilogue",
+      "guide"
+    ],
+    "companion_documents": [
+      "DARKWOOD_GUIDE_WALKTHROUGH.md"
+    ],
+    "format": "Markdown",
+    "language": "English",
+    "rag_optimized": true
+  }
+}
