@@ -74,7 +74,7 @@ Why is this valuable and hard to find through official channels?
 
 The documents in this corpus have a consistent hierarchical structure: a top-level `#` title, `##` part/act/chapter headers, `###` area or objective headers, and `####` granular sub-section headers. This structure maps directly to a recursive header-based chunking strategy.
 
-Each chunk is split at `###` or `####` heading boundaries. When a section is shorter than the target chunk size, it is merged with the following section until the target is reached. Sections longer than the chunk size are further split at natural paragraph breaks (blank lines), never mid-sentence.
+Each chunk is split at `###` or `####` heading boundaries. When a section is shorter than the target chunk size, it is merged with the following section until the target is reached. Sections longer than the chunk size are further split at natural paragraph breaks (blank lines), never mid-sentence. When a section is split into multiple sub-chunks this way, the originating `###` or `####` heading title is re-prepended to every resulting sub-chunk so that no chunk ever loses its semantic label — a sub-chunk that describes step 2 of a puzzle still carries the heading "Mixing the Acid" rather than appearing context-free.
 
 An 800-character chunk size was chosen for three reasons:
 1. **Query granularity**: Horror game queries tend to be specific ("where is the acid compound in the Laboratory?"). An 800-char chunk is large enough to contain a complete room's walkthrough steps without bloating the LLM context with adjacent rooms.
