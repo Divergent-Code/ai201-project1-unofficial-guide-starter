@@ -1,0 +1,52 @@
+{
+  "document_metadata": {
+    "title": "Amnesia: The Dark Descent Collectibles Guide",
+    "author": "Adenosine",
+    "associated_game": "Amnesia: The Dark Descent (2010)",
+    "developer": "Frictional Games",
+    "category": "Collectibles and Achievements",
+    "description": "Area-by-area reference guide for all Tinderboxes, Notes and Diary Pages, Oil Containers, and Laudanum in Amnesia: The Dark Descent. Includes achievement requirements for Illuminatus, Master Archivist, Agrippa's Friend, and Connoisseur of Horror.",
+    "collectible_types": [
+      "Tinderboxes",
+      "Notes and Diary Pages",
+      "Oil Containers",
+      "Laudanum"
+    ],
+    "approximate_totals": {
+      "tinderboxes": 46,
+      "notes_and_diary_pages": 36,
+      "oil_containers": 25,
+      "laudanum": 17
+    },
+    "achievements_covered": [
+      "Illuminatus",
+      "Master Archivist",
+      "Agrippa's Friend",
+      "Connoisseur of Horror (Platinum)"
+    ],
+    "acts_covered": [
+      "Act I",
+      "Act II",
+      "Act III",
+      "Act IV"
+    ],
+    "tags": [
+      "collectibles",
+      "tinderboxes",
+      "notes",
+      "diary",
+      "achievements",
+      "trophies",
+      "horror",
+      "survival",
+      "amnesia",
+      "frictional games"
+    ],
+    "companion_documents": [
+      "Amnesia_The_Dark_Descent_Complete_Walkthrough.md"
+    ],
+    "format": "Markdown with tables",
+    "language": "English",
+    "rag_optimized": true
+  }
+}
