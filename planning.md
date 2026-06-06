@@ -74,7 +74,10 @@ Why is this valuable and hard to find through official channels?
 
 The documents in this corpus have a consistent hierarchical structure: a top-level `#` title, `##` part/act/chapter headers, `###` area or objective headers, and `####` granular sub-section headers. This structure maps directly to a recursive header-based chunking strategy.
 
-Each chunk is split at `###` or `####` heading boundaries. When a section is shorter than the target chunk size, it is merged with the following section until the target is reached. Sections longer than the chunk size are further split at natural paragraph breaks (blank lines), never mid-sentence. When a section is split into multiple sub-chunks this way, the originating `###` or `####` heading title is re-prepended to every resulting sub-chunk so that no chunk ever loses its semantic label — a sub-chunk that describes step 2 of a puzzle still carries the heading "Mixing the Acid" rather than appearing context-free.
+Each chunk is split at `###` or `####` heading boundaries. When a section is shorter than the target chunk size, it is merged with the following section until the target is reached. Sections longer than the chunk size are further split at natural paragraph breaks (blank lines), never mid-sentence. 
+
+To prevent loss of contextual mapping (especially for generic queries like "ending"), the **entire heading hierarchy path** leading down to the section (e.g. `[Section: Endings > New Game+ > Dog]`) is reconstructed and prepended to the text content of every chunk. This injects crucial high-level keywords (such as "Endings" or "New Game+") directly into the text, making them indexable for both semantic search and keyword search.
+
 
 An 800-character chunk size was chosen for three reasons:
 1. **Query granularity**: Horror game queries tend to be specific ("where is the acid compound in the Laboratory?"). An 800-char chunk is large enough to contain a complete room's walkthrough steps without bloating the LLM context with adjacent rooms.
@@ -92,6 +95,13 @@ An 800-character chunk size was chosen for three reasons:
 **Top-k:** 5
 
 **Game filter:** Users may optionally filter queries to a specific game. When a game filter is active, ChromaDB's `where` clause restricts results to chunks whose `associated_game` metadata field matches the selected game. When no filter is active, retrieval is performed across the full corpus.
+
+**Hybrid Search & Re-ranking:**
+To combine the semantic accuracy of vector search with the precise match requirements of keyword search, retrieval utilizes a **Hybrid Search** strategy:
+1. **Vector Retrieval**: Embeds the query with `all-MiniLM-L6-v2` and retrieves the top 50 semantic candidates from ChromaDB.
+2. **Lexical Scoring**: Runs a term-frequency (TF) based keyword scorer over all candidate chunks matching the game filter.
+3. **Reciprocal Rank Fusion (RRF)**: Merges the vector search ranking and keyword search ranking using a standard reciprocal rank fusion formula (constant $k=60$) to determine the final top 5 chunks.
+
 
 **Production tradeoff reflection:**
 
