@@ -12,6 +12,9 @@ the embedding model and ChromaDB collection are loaded only once per process,
 avoiding repeated cold-start overhead in the Streamlit app.
 """
 
+import math
+import re
+from collections import Counter
 from pathlib import Path
 
 import chromadb
@@ -25,6 +28,57 @@ COLLECTION_NAME = "horror_guides"
 EMBED_MODEL = "all-MiniLM-L6-v2"
 CHROMA_DIR = str(Path(__file__).parent / "chroma_db")
 
+
+# ---------------------------------------------------------------------------
+# BM25 Keyword Search Scorer
+# ---------------------------------------------------------------------------
+
+def tokenize(text: str) -> list[str]:
+    """Tokenize text by converting to lowercase and extracting words."""
+    return re.findall(r"\w+", text.lower())
+
+
+class BM25Scorer:
+    """Pure-Python BM25 scorer for tf-idf style document search."""
+    def __init__(self, documents: list[str], k1: float = 1.5, b: float = 0.75):
+        self.k1 = k1
+        self.b = b
+        self.N = len(documents)
+        
+        tokenized_docs = [tokenize(doc) for doc in documents]
+        self.doc_lens = [len(doc) for doc in tokenized_docs]
+        self.avg_doc_len = sum(self.doc_lens) / self.N if self.N > 0 else 1.0
+        
+        self.doc_term_freqs = [Counter(doc) for doc in tokenized_docs]
+        
+        doc_freqs = Counter()
+        for doc in tokenized_docs:
+            doc_freqs.update(set(doc))
+        
+        self.idfs = {}
+        for term, df in doc_freqs.items():
+            self.idfs[term] = math.log(1 + (self.N - df + 0.5) / (df + 0.5))
+
+    def score(self, query_terms: list[str], doc_idx: int) -> float:
+        tf_counter = self.doc_term_freqs[doc_idx]
+        doc_len = self.doc_lens[doc_idx]
+        score = 0.0
+        
+        for term in query_terms:
+            if term not in self.idfs:
+                continue
+            tf = tf_counter.get(term, 0)
+            if tf == 0:
+                continue
+            
+            idf = self.idfs[term]
+            numerator = tf * (self.k1 + 1)
+            denominator = tf + self.k1 * (1 - self.b + self.b * (doc_len / self.avg_doc_len))
+            score += idf * (numerator / denominator)
+            
+        return score
+
+
 # ---------------------------------------------------------------------------
 # Module-level singletons — loaded once on first call, reused thereafter.
 # Streamlit re-runs the script on every interaction; these persist across
@@ -34,14 +88,16 @@ CHROMA_DIR = str(Path(__file__).parent / "chroma_db")
 _model: SentenceTransformer | None = None
 _collection = None
 _game_cache: list[str] | None = None  # cached unique game list
+_bm25_scorer: BM25Scorer | None = None
+_all_chunks: list[dict] | None = None
 
 
 def _load_resources() -> None:
     """
-    Load the embedding model and ChromaDB collection if not already loaded.
+    Load the embedding model, ChromaDB collection, BM25 Scorer, and chunks list if not already loaded.
     Raises RuntimeError if the collection doesn't exist (embed.py not yet run).
     """
-    global _model, _collection
+    global _model, _collection, _bm25_scorer, _all_chunks
     if _model is None:
         _model = SentenceTransformer(EMBED_MODEL)
     if _collection is None:
@@ -53,6 +109,27 @@ def _load_resources() -> None:
                 f"ChromaDB collection '{COLLECTION_NAME}' not found. "
                 "Run 'python embed.py' first to build the index."
             ) from e
+            
+    if _bm25_scorer is None or _all_chunks is None:
+        # Fetch all chunks to build lexical index
+        all_data = _collection.get(include=["documents", "metadatas"])
+        _all_chunks = []
+        doc_texts = []
+        if all_data and all_data.get("ids"):
+            for i in range(len(all_data["ids"])):
+                chunk_id = all_data["ids"][i]
+                doc = all_data["documents"][i]
+                meta = all_data["metadatas"][i]
+                _all_chunks.append({
+                    "id": chunk_id,
+                    "text": doc,
+                    "metadata": meta,
+                    "bm25_index": i
+                })
+                doc_texts.append(doc)
+            
+            if doc_texts:
+                _bm25_scorer = BM25Scorer(doc_texts)
 
 
 # ---------------------------------------------------------------------------
@@ -65,7 +142,8 @@ def retrieve(
     top_k: int = 5,
 ) -> list[dict]:
     """
-    Retrieve the top-k most relevant chunks for a given query.
+    Retrieve the top-k most relevant chunks for a given query using a hybrid
+    vector (semantic) and BM25 (lexical) search merged with Reciprocal Rank Fusion (RRF).
 
     Game filter logic:
         - If game_filter is None → search the full corpus (all 21 documents).
@@ -81,7 +159,7 @@ def retrieve(
         top_k:       Number of results to return (default: 5).
 
     Returns:
-        List of result dicts ordered by relevance (most relevant first):
+        List of result dicts ordered by RRF relevance (most relevant first):
             text           : str   — full chunk text
             game           : str   — game name from metadata
             title          : str   — document title
@@ -89,33 +167,141 @@ def retrieve(
             section_header : str   — heading that owns this chunk
             source_file    : str   — source .md filename
             chunk_index    : int   — chunk position within the source file
-            distance       : float — cosine distance (0 = identical, 2 = opposite)
+            distance       : float — cosine distance (0 = identical, 2 = opposite) or placeholder
     """
     _load_resources()
 
-    # Embed the query with the same model used during indexing
-    query_embedding = _model.encode([query], show_progress_bar=False).tolist()
+    if not _bm25_scorer or not _all_chunks:
+        # Fallback to pure vector search if lexical index is empty
+        return _retrieve_vector_only(query, game_filter, top_k)
 
-    # Build ChromaDB where clause if a game filter is requested
+    # 1. Run Vector Search (get top 50 candidates matching filter)
+    query_embedding = _model.encode([query], show_progress_bar=False).tolist()
     where_clause = _build_where_clause(game_filter)
 
-    # Query ChromaDB
     query_kwargs: dict = {
         "query_embeddings": query_embedding,
-        "n_results": top_k,
+        "n_results": min(50, _collection.count()),
         "include": ["documents", "metadatas", "distances"],
     }
     if where_clause:
         query_kwargs["where"] = where_clause
 
     results = _collection.query(**query_kwargs)
+    
+    docs = results["documents"][0] if results.get("documents") else []
+    metas = results["metadatas"][0] if results.get("metadatas") else []
+    dists = results["distances"][0] if results.get("distances") else []
+    ids = results["ids"][0] if results.get("ids") else []
 
-    # Flatten ChromaDB's nested structure into a clean list
+    vector_candidates = {}
+    for rank, (cid, doc, meta, dist) in enumerate(zip(ids, docs, metas, dists), 1):
+        vector_candidates[cid] = {
+            "rank": rank,
+            "doc": doc,
+            "meta": meta,
+            "distance": round(dist, 4)
+        }
+
+    # 2. Run BM25 Search (get top 50 candidates matching filter)
+    matching_games = None
+    if game_filter:
+        all_games = _get_all_games()
+        matching_games = [g for g in all_games if g.startswith(game_filter)]
+
+    filtered_chunks = _all_chunks
+    if matching_games:
+        filtered_chunks = [c for c in _all_chunks if c["metadata"].get("game") in matching_games]
+
+    query_terms = tokenize(query)
+    scored_chunks = []
+    for c in filtered_chunks:
+        score = _bm25_scorer.score(query_terms, c["bm25_index"])
+        if score > 0:
+            scored_chunks.append((score, c))
+
+    # Sort descending by BM25 score
+    scored_chunks.sort(key=lambda x: x[0], reverse=True)
+
+    keyword_candidates = {}
+    for rank, (score, c) in enumerate(scored_chunks[:50], 1):
+        keyword_candidates[c["id"]] = {
+            "rank": rank,
+            "doc": c["text"],
+            "meta": c["metadata"]
+        }
+
+    # 3. Reciprocal Rank Fusion (RRF) with constant k=60
+    union_ids = set(vector_candidates.keys()).union(set(keyword_candidates.keys()))
+
+    rrf_scores = []
+    for cid in union_ids:
+        v_rank = vector_candidates[cid]["rank"] if cid in vector_candidates else None
+        k_rank = keyword_candidates[cid]["rank"] if cid in keyword_candidates else None
+
+        v_score = 1.0 / (60.0 + v_rank) if v_rank is not None else 0.0
+        k_score = 1.0 / (60.0 + k_rank) if k_rank is not None else 0.0
+        rrf_score = v_score + k_score
+
+        # Retrieve doc details
+        if cid in vector_candidates:
+            doc = vector_candidates[cid]["doc"]
+            meta = vector_candidates[cid]["meta"]
+            distance = vector_candidates[cid]["distance"]
+        else:
+            doc = keyword_candidates[cid]["doc"]
+            meta = keyword_candidates[cid]["meta"]
+            distance = 0.5  # placeholder for keyword-only retrieval
+
+        rrf_scores.append({
+            "rrf_score": rrf_score,
+            "id": cid,
+            "doc": doc,
+            "meta": meta,
+            "distance": distance
+        })
+
+    # Sort candidates by RRF score descending
+    rrf_scores.sort(key=lambda x: x["rrf_score"], reverse=True)
+
+    # 4. Form output
+    output = []
+    for item in rrf_scores[:top_k]:
+        meta = item["meta"]
+        output.append({
+            "text": item["doc"],
+            "game": meta.get("game", "Unknown"),
+            "title": meta.get("title", "Unknown"),
+            "category": meta.get("category", "Unknown"),
+            "section_header": meta.get("section_header", ""),
+            "source_file": meta.get("source_file", ""),
+            "chunk_index": int(meta.get("chunk_index", 0)),
+            "distance": item["distance"],
+        })
+
+    return output
+
+
+def _retrieve_vector_only(
+    query: str,
+    game_filter: str | None = None,
+    top_k: int = 5,
+) -> list[dict]:
+    """Fallback vector-only retrieval function."""
+    query_embedding = _model.encode([query], show_progress_bar=False).tolist()
+    where_clause = _build_where_clause(game_filter)
+    query_kwargs: dict = {
+        "query_embeddings": query_embedding,
+        "n_results": min(top_k, _collection.count()),
+        "include": ["documents", "metadatas", "distances"],
+    }
+    if where_clause:
+        query_kwargs["where"] = where_clause
+    results = _collection.query(**query_kwargs)
     output: list[dict] = []
-    docs = results["documents"][0]
-    metas = results["metadatas"][0]
-    dists = results["distances"][0]
-
+    docs = results["documents"][0] if results.get("documents") else []
+    metas = results["metadatas"][0] if results.get("metadatas") else []
+    dists = results["distances"][0] if results.get("distances") else []
     for doc, meta, dist in zip(docs, metas, dists):
         output.append({
             "text": doc,

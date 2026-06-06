@@ -162,31 +162,41 @@ def _split_by_paragraphs(text: str, header: str) -> list[str]:
     return sub_chunks
 
 
-def _extract_sections(md_text: str) -> list[tuple[str, str, int]]:
+def _extract_sections(md_text: str) -> list[tuple[str, str, int, str]]:
     """
     Parse a Markdown document and extract sections keyed on ### and #### headings.
     Sections under ## or # headings without a ### child are also captured.
+    Also returns the active heading hierarchy path (breadcrumb) leading to the section.
 
     Returns:
-        List of (heading_text, section_body, heading_level) tuples in document order.
+        List of (heading_text, section_body, heading_level, heading_path) tuples in document order.
     """
     sections = []
     lines = md_text.split('\n')
     current_heading = None
     current_level = 0
     current_body_lines = []
+    
+    # Stack to track active headings: list of (level, clean_heading_text)
+    stack = []
 
     for line in lines:
         m = HEADING_PATTERN.match(line)
         if m:
             level = len(m.group(1))   # number of # chars
             heading_text = line.strip()
+            clean_heading = m.group(2).strip()
 
             # Flush previous section
             if current_heading is not None:
                 body = '\n'.join(current_body_lines).strip()
                 if body:
-                    sections.append((current_heading, body, current_level))
+                    path_str = " > ".join([h[1] for h in stack])
+                    sections.append((current_heading, body, current_level, path_str))
+
+            # Update stack for the new heading (keep only parents with lower level)
+            stack = [h for h in stack if h[0] < level]
+            stack.append((level, clean_heading))
 
             current_heading = heading_text
             current_level = level
@@ -198,7 +208,8 @@ def _extract_sections(md_text: str) -> list[tuple[str, str, int]]:
     if current_heading is not None:
         body = '\n'.join(current_body_lines).strip()
         if body:
-            sections.append((current_heading, body, current_level))
+            path_str = " > ".join([h[1] for h in stack])
+            sections.append((current_heading, body, current_level, path_str))
 
     return sections
 
@@ -212,7 +223,7 @@ def chunk_document(md_path: Path, metadata: dict) -> list[dict]:
       2. For sections within CHUNK_TARGET: emit as a single chunk.
       3. For sections below MIN_CHUNK_SIZE: merge with next section.
       4. For sections exceeding CHUNK_TARGET: split at paragraph breaks,
-         re-prepending the heading to every sub-chunk.
+         re-prepending the heading path + heading to every sub-chunk.
 
     Args:
         md_path:  Path to the .md file.
@@ -226,61 +237,64 @@ def chunk_document(md_path: Path, metadata: dict) -> list[dict]:
         md_text = f.read()
 
     sections = _extract_sections(md_text)
-    raw_chunks: list[str] = []
-    pending = ""          # buffer for merging small sections
-    pending_header = ""   # heading carried forward during merging
+    raw_chunks: list[tuple[str, str]] = []  # list of (chunk_text, heading_path)
+    pending_body = ""
+    pending_heading = ""
+    pending_path = ""
 
-    for heading, body, _level in sections:
-        section_text = f"{heading}\n{body}"
+    for heading, body, _level, heading_path in sections:
+        path_prefix = f"[Section: {heading_path}]" if heading_path else ""
+        full_header = f"{path_prefix}\n{heading}" if path_prefix else heading
+        section_text = f"{full_header}\n{body}"
 
-        if pending:
+        if pending_body:
             # Try merging pending + this section
-            merged = pending + "\n\n" + section_text
-            if len(merged) <= CHUNK_TARGET:
-                pending = merged
+            merged_body = pending_body + "\n\n" + section_text
+            if len(merged_body) <= CHUNK_TARGET:
+                pending_body = merged_body
                 continue
             else:
                 # Flush pending before processing current section
-                if len(pending.strip()) >= MIN_CHUNK_SIZE:
-                    raw_chunks.append(pending.strip())
-                pending = ""
-                pending_header = ""
+                if len(pending_body.strip()) >= MIN_CHUNK_SIZE:
+                    raw_chunks.append((pending_body.strip(), pending_path))
+                pending_body = ""
+                pending_heading = ""
+                pending_path = ""
 
         if len(section_text) <= MIN_CHUNK_SIZE:
             # Too small — hold for merging with next section
-            pending = section_text
-            pending_header = heading
+            pending_body = section_text
+            pending_heading = heading
+            pending_path = heading_path
         elif len(section_text) <= CHUNK_TARGET:
             # Just right — emit as-is
-            raw_chunks.append(section_text.strip())
+            raw_chunks.append((section_text.strip(), heading_path))
         else:
             # Too large — split at paragraph boundaries, then hard-cap if needed
-            sub = _split_by_paragraphs(body, heading)
+            sub = _split_by_paragraphs(body, full_header)
             for s in sub:
-                raw_chunks.extend(_hard_split(s, heading))
+                for piece in _hard_split(s, full_header):
+                    raw_chunks.append((piece, heading_path))
 
     # Flush any remaining pending content
-    if pending and len(pending.strip()) >= MIN_CHUNK_SIZE:
-        raw_chunks.append(pending.strip())
+    if pending_body and len(pending_body.strip()) >= MIN_CHUNK_SIZE:
+        raw_chunks.append((pending_body.strip(), pending_path))
 
     # Build final chunk dicts
     chunks = []
-    for idx, text in enumerate(raw_chunks):
-        # Extract section header from first line of chunk
-        first_line = text.split('\n')[0].strip()
-        section_header = first_line if HEADING_PATTERN.match(first_line) else metadata['title']
-
+    for idx, (text, path) in enumerate(raw_chunks):
         chunks.append({
             'text': text,
             'game': metadata['game'],
             'title': metadata['title'],
             'category': metadata['category'],
-            'section_header': section_header,
+            'section_header': path if path else metadata['title'],
             'source_file': md_path.name,
             'chunk_index': idx,
         })
 
     return chunks
+
 
 
 # ---------------------------------------------------------------------------
