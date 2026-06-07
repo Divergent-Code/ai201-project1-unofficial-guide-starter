@@ -291,7 +291,7 @@ Use the metal cage/crate to our right to go through the window and then back thr
 
 When entered, we'll accept to unlock the door. Inside the room, head to the hole opposite the door and search it. We'll get the final hand for the clock. Go back to **212**, and when entering, the room changed up a bit. The room near the lamp with the Clock Puzzle note will be open. Inside we'll find a **health drink** in front of us. To the right, we'll find another **Strange Photo - How the time flies**. Head to the clock to place the final hand on it, and fifteen (15) minutes past, which is the number 3. Upon doing that, head out of 212 and take the staircase down to the first floor. Enter **Apartment 101** and toward where the **S** door is located. Interacting with the door will trigger a cutscene.
 
-**Boss: Pyramid Head**
+### First Boss Fight: Pyramid Head
 When we face off against **Pyramid Head**, remember that bullets aren't going to do anything against him at the head. We'll have to aim at the other areas of him that are vulnerable. The best thing to do is to fire a few shots at him and then start moving before he has a chance to get close enough with his **Great Knife**. Unfortunately, this is the only strategy you will have to do. That is, until we start hearing a siren, and when we do, that is our sign to stop firing at him to try to deal any damage to him. After the fight, head through the doors he opened. There'll be another set of doors that'll lead to West South Vale.
 
 ---
@@ -597,8 +597,8 @@ Exit out after reading that as a brief interaction with **Pyramid Head** will ha
 **Return to the Third Floor**
 Upon returning to the third floor, we'll be on the other side of the door where we saw **Laura** last. Head to the **Hydrotherapy Room**. Inside there's a box on the desk with a **syringe**. On the other side of the desk is a cabinet with a **health drink**. To the right is a box of **shotgun shells** on a metal drawer. Head opposite of there to the stand near the tub to get a box of ammo. Exit back into the hallway. Upon exiting, head to the slight left and around the corner at the end. Go through the double doors and to the center hallway as a cutscene will commence.
 
+### Second Boss Fight: Flesh Lips
 **Boss Information**
-**Boss:** Flesh Lips
 **HP:** ??
 
 When this fight starts, we'll have to keep moving when it's not in sight. As it drops, we'll want to make sure it's not swinging before taking any hits on it. At the start, be sure to use melee weapons, such as the steel pipe. When it comes down and isn't swinging, is when we want to get some hits on it before it goes back up in the ceiling. After so many hits, the metal around it will come off and separate, forming a weapon to attack in return. When that happens, we'll have to be careful with any close-range weapons. At this point, we'll want to try using a bit of the ranged weapons to help out. From this point, we'll go until we do more damage, and when we do, the other metal edges will come off that may act as legs when it's on the ground. As soon as that happens, we'll have to use the ranged weapons on it while keeping our distance. Keep your distance while shooting before we take it down.
@@ -1019,7 +1019,7 @@ Reach into the hole until we get the **Medium weight**. Once we get it, head bac
 
 ### Eyeless Boar path
 
-Once the weights have been placed, we'll need to head back and to the **Block B** area. The **Eyeless Boar** path is across from **B3**. Entering through the door, head to the opened cell door on the left. On the other end, there's a desk with a file to read. Looks like another schedule. After reading it, take a right toward the **Warehouse**. The last door on the right should be the door that leads into the **Warehouse**. Enter and take a right, but watch out for a **Lying Figure Variant** that'll come toward us from the farthest shelf we see. Take it out and to the first shelf that we came to when going toward the **Lying Figure Variant**. Between the shelves should be a box of ammo on the left. Go toward the desk on the far end of where we entered the **Warehouse**. Watch out for a **Mannequin**. Deal with it, and we'll have a **Strange Photo** on the desk.
+Once the weights have been placed, we'll have the **Eyeless Boar** path unlocked. The **Eyeless Boar** path is across from **B3**. Entering through the door, head to the opened cell door on the left. On the other end, there's a desk with a file to read. Looks like another schedule. After reading it, take a right toward the **Warehouse**. The last door on the right should be the door that leads into the **Warehouse**. Enter and take a right, but watch out for a **Lying Figure Variant** that'll come toward us from the farthest shelf we see. Take it out and to the first shelf that we came to when going toward the **Lying Figure Variant**. Between the shelves should be a box of ammo on the left. Go toward the desk on the far end of where we entered the **Warehouse**. Watch out for a **Mannequin**. Deal with it, and we'll have a **Strange Photo** on the desk.
 
 This one is titled **Old man's always prepared**. Unlock the door to the left of the desk to head back out to where we entered through the **Eyeless Boar** door. Go through the cell door and to the left at the end. We'll be heading toward the **Visitation Room**. When in the **Visitation Room** area, head to the left and look at the visitation area until we see a broken window. There'll be a **Lying Figure** that'll come through it if we wait long enough. Take it out, then slip to the other side of the broken window. To the left at the far end is a box of **shotgun shells**. Turn around to head to the other side of the **Visitation Room** toward the bathrooms.
 
@@ -1248,8 +1248,8 @@ Take the way until we reach a set of double doors and a hole. Interact with it u
 Upon reaching where the elevator takes us, we'll see a door in front of us and a save point to the right of it. On the other side of the door, we'll be in a hallway like at an apartment building. Follow the path as we reach a spot with a newspaper on the floor.
 We can interact with it to read it, as some parts have been blotted out. After reading, continue on the path as we'll hear **Angela** and a door covered in newspapers. That'll be the door we'll enter through. Inside the room and to the left is a table with a **health drink** on it. In the kitchen area, there's a box of **shotgun shells** in the top drawer next to the refrigerator. Head back toward the table and take a left. Enter the door that isn't boarded up. When through, go around the corner to the door on the far end on the right. Interact with the door that'll trigger a cutscene.
 
+### Third Boss Fight: Abstract Daddy
 **Boss Information**
-**Boss:** Abstract Daddy
 **HP:** ??
 
 **Phase One**
@@ -1356,8 +1356,8 @@ Walk over and interact with **Pyramid Head's "Great Knife."** Interact with it a
 
 In the cemetery, there's a box of **shotgun shells** on the headstone. On the other side is a **health drink** near the boards closer to the save point. If we take the time to look at some of the headstones, they'll have familiar names on them. There'll be three open graves, and we'll need to go to the one on the far left. Jump when prompted. In a new area, we'll follow the path until we reach a door we'll need to interact with and a cutscene is triggered. When the cutscene is over, walk through the door in front of us, and we'll have a boss fight.
 
+### Fourth Boss Fight: Eddie
 **Boss Information**
-**Boss:** Eddie
 **HP:** ??
 
 **Phase One**
@@ -1542,16 +1542,16 @@ Around the corner to the left is a **Lying Figure**, we can bypass it by going t
 
 To the left of the desk, we'll go toward the **TV Room**, but watch out for the **Spider Mannequin**. Head to the door to the left of it. Follow the path until we reach a gap that we have to squeeze through. Go to the right and through the door. We should see nine save points on the wall. That is the last save point of the entire game. This would be the best time to save for what's coming up. Go to the right until we reach a door to interact with, and a cutscene will trigger.
 
+### Fifth Boss Fight: Pyramid Head Duel
 **Boss Information**
-**Boss:** Pyramid Head Duel
 **HP:** ??
 Similar to the fight at Bluecreek Apartments, but this time it'll be double the trouble. During the fight, we'll need to keep our distance from them. Remember to aim anywhere except for the head area. You'll need to do this from a distance at their lower part or from behind. If either of themgetst closeenough,h we'll need to dodge when they're about to attack. This will be a repeat process during this fight. The fight will conclude when a cutscene triggers. When the fight concludes, we'll need to inspect both of them with one of their hands. Both will have an egg. One will have a **rust-colored egg** and the other has a **Scarlett Egg**. We'll need to insert them at the doors shown below:
 
 Depending on which door you enter, it may determine which ending you get and what you have done up to this point. Inside the hallway we'll have a monologue from **Mary**. Listening to it to the end or going through the end before it finishes will also count which ending we may get. On the other side of the door, head to the right, as we should find a box of ammo along with a **syringe**. To the left of those, you will find a strange photo.
 This one is titled **SHAPE FORCES THE MIND**. Turn around and go to the other side of where we came out. Be sure to pick up the boxes of **shotgun shells**, **rifle rounds**, and **handgun** ammo. After collecting those, head up the stairs until we reach a ladder we'll climb. At the top, we'll see someone looking out the window. Walk over until a cutscene triggers.
 
+### Final Boss Fight: Mary
 **Boss Information**
-**Boss:** Mary
 **HP:** ??
 
 **Phase One**

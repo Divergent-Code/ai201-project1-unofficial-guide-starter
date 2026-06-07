@@ -184,7 +184,7 @@ Follow the path past the Church.
 
 ### Objective: Defeat the Lake Monster
 
-#### Boss Fight: Del Lago
+#### First Boss Fight: Del Lago
 Board the boat and use the **Boat Fuel** to launch.
 - **Strategy**: Steer with the stick to avoid logs. Throw harpoons at the monster's back. When it charges the boat, throw a harpoon directly into its open mouth to stop it. Continue until Del Lago is defeated.
 
@@ -263,7 +263,7 @@ Return to the Quarry Merchant's dock and take the path toward the Church.
 
 ### Objective: Defeat the Giant
 
-#### Boss Fight: El Gigante
+#### Second Boss Fight: El Gigante
 - **Strategy**: Shoot the giant's head until the parasite sprouts from his back. Shoot the parasite. Use the dog ally's distraction to stagger the giant, then climb onto his back to perform a knife slash on the parasite. Repeat until defeated.
 - **Treasure: Yellow Diamond**: Collect the **Yellow Diamond** dropped by the giant.
 
@@ -336,7 +336,7 @@ Call Ashley out of the locker and open the southern gate with the **Checkpoint C
 
 ### Objective: Defeat Mendez
 
-#### Slaughterhouse Boss Fight
+#### Third Boss Fight: Chief Mendez (Slaughterhouse Boss Fight)
 Follow the path to the final Merchant room, then go upstairs to start the fight.
 - **First Phase**: Climb the ladders to the upper platform, dodge his tentacle attacks, and shoot the eye on his back. Perform the knife prompt when he falls.
 - **Second Phase**: Dodge the burning wooden beams and shoot the explosive barrels in his hands. Shoot his body until he falls, then perform the final knife prompt.
@@ -618,7 +618,7 @@ Enter the smelting room.
 
 ### Objective: Defeat Ramon
 
-#### Boss Fight: Ramon Salazar
+#### Fourth Boss Fight: Ramon Salazar
 - **Trophy: You Talk Too Much!**: During the fight, throw a hand grenade directly into Ramon's open mouth when he exposes his human body.
 - **Strategy**: Use the pillars in the arena for cover. Avoid his acid attacks. Shoot his human body in the center of the monster shell until he is defeated.
 - **Key Item: Lip Rouge**: Collect **Lip Rouge** from Ramon's body.
@@ -736,7 +736,7 @@ Pass through the double doors at the exit of the Amber Storeroom.
 
 ### Objective: Defeat Krauser
 
-#### Boss Fight: Transformed Krauser
+#### Fifth Boss Fight: Transformed Krauser
 Krauser transforms, mutating his arm into a blade shield.
 - **Blade Attacks**: Parry his sword slashes and slash him back. Shoot his feet to stagger him when he blocks his body with his wing.
 - **Grab Attacks**: When Krauser winds up his mutated arm to grab you, dodge by moving quickly to the right.
@@ -809,7 +809,7 @@ Krauser transforms, mutating his arm into a blade shield.
 
 ### Objective: Defeat Saddler
 
-#### Final Boss: Osmund Saddler
+#### Final Boss Fight: Osmund Saddler
 - **First Phase**: Saddler has large eyes on his legs. Shoot the eyes to destroy them. Once all eyes are popped, he will be staggered. Run to his head and perform the knife prompt to deal massive damage. Shoot the leg eyes to disrupt his attack when he climbs the central tower to summon Novistadors.
 - **Second Phase**: Saddler transforms into a giant core surrounded by tentacles. Dodge his horizontal tentacle swipes. Shoot the large central eye. Once Ada throws the Special Rocket Launcher down, pick it up, aim at the central eye, and shoot to end the boss fight.
 

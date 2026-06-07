@@ -400,7 +400,7 @@ A room with a large iron safe in the center is encountered mid-dungeon.
 
 ---
 
-### Objective: Defeat The Keeper (Boss 1)
+### Objective: Defeat The Keeper (First Boss Fight)
 
 #### The Keeper — Introduction
 The Keeper is a massive enemy wearing a large metal safe as a head, armed with a barbed wire and hook weapon. He appears at the end of the trap corridor.
@@ -654,7 +654,7 @@ The cart tracks lead across a large burning bridge. The bridge is partially coll
 
 ---
 
-### Objective: Defeat the Amalgam Alpha
+### Objective: Defeat the Amalgam Alpha (Second Boss Fight)
 
 #### The Amalgam Alpha — Boss Introduction
 The cart arrives at a large industrial arena. A massive creature — the Amalgam Alpha, one of Ruvik's earliest failed STEM experiments — occupies the space. It is an enormous, flesh-based entity with multiple humanoid bodies fused together.
@@ -785,7 +785,7 @@ Sebastian finds himself in a distorted, collapsing version of the Safe Room.
 
 ---
 
-### Objective: Defeat Ruvik (Final Boss)
+### Objective: Defeat Ruvik (Final Boss Fight)
 
 #### Ruvik — Phase 1 (Human Form)
 Ruvik appears in the final arena — a collapsing amalgamation of all STEM environments. He confronts Sebastian in his human form.

@@ -198,7 +198,7 @@ Arrive at the Bridge Tram Station. Walk through the Atrium Hallway to the Main A
 
 ### Objective: Activate Elevators
 
-#### Brute Boss Battle
+#### First Boss Fight: The Brute (Brute Boss Battle)
 Upon exiting the Captain's Nest, the elevator door breaks open, and a Brute attacks.
 - **Boss Strategy**: The Brute's front armor is invulnerable. Aim and shoot Stasis to freeze him, run behind him, and shoot the glowing yellow spots on his back/shoulders. Repeat this until he is defeated.
 
@@ -239,7 +239,7 @@ Return to the Medical Deck.
 Proceed to the Chemical Lab.
 - **Key Item: Chemical Sample**: Interact with the laboratory terminal to mix the chemicals and retrieve the **Chemical Sample**.
 
-#### The Hunter Encounter
+#### Second Boss Fight: The Hunter (The Hunter Encounter)
 - **Hunter Boss**: Dr. Mercer will release the Hunter (a regenerating Necromorph). 
 - **Strategy**: You cannot kill the Hunter in normal combat. Shoot his legs off to slow him down, freeze him with Stasis, and immediately run out of the room. Follow your locator path through the Emergency Room.
 
@@ -306,7 +306,7 @@ Return to the Atmosphere Control room. Interact with the central terminal to rec
 
 ### Objective: Kill the Leviathan
 
-#### Leviathan Boss Fight
+#### Third Boss Fight: The Leviathan (Leviathan Boss Fight)
 Enter the Food Storage chamber to face the Leviathan.
 - **Phase 1 (Tentacles)**: The Leviathan will attack with three large tentacles. Stand on the side walkways, dodge its sweeps, and shoot the yellow glowing spots on the base of each tentacle when they slam down.
 - **Phase 2 (Mouth)**: The central mouth will open, exposing an orange core. Shoot the core. When the Leviathan spits explosive balls at you, use Kinesis to catch the balls in mid-air and launch them back into the mouth.
@@ -407,7 +407,7 @@ Return to the Comms Control Room. Activate the computer terminal to transmit the
 
 ### Objective: Use ADS Cannon
 
-#### ADS Cannon 48 (Slug Boss Fight)
+#### Fourth Boss Fight: The Slug (ADS Cannon 48 (Slug Boss Fight))
 Head to the lower deck to man the exterior ADS Cannon.
 - **Boss Strategy**: The giant Slug creature is blocking the transmitter. Aim the dual cannons at the glowing yellow pods on its five long arms.
 - **Incoming Debris**: The Slug will tear off pieces of the hull and throw them at your window. Shoot these incoming debris chunks in mid-air before they impact. Alternating between left and right fire buttons will prevent your cannons from overheating. Destroy all five arm nodes to defeat the boss.
@@ -610,7 +610,7 @@ Enter the zero-gravity gravity control room.
 Navigate past the giant spinning air fans.
 - **Strategy**: Fire Stasis to slow down the fan blades to pass through safely. Activate the bridge power console at the end.
 
-#### Gravity Tether Operations B
+#### Fifth Boss Fight: The Super Brute (Gravity Tether Operations B)
 - **Super Brute Boss**: A Super Brute will block the return. Stasis him, run behind him, and shoot the yellow shoulder weak spots.
 
 #### Pedestal Chamber
@@ -627,7 +627,7 @@ Backtrack to the Landing Pad.
 
 ---
 
-### Objective: Kill the Hive Mind (Final Boss)
+### Objective: Kill the Hive Mind (Final Boss Fight: The Hive Mind)
 
 #### Landing Pad Arena
 The massive Hive Mind rises from the abyss.
