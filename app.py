@@ -3,10 +3,9 @@ app.py — Streamlit interface for the Horror Game Unofficial RAG Guide.
 
 Features:
 - Premium survival-horror dark-themed styling (custom CSS).
-- Sidebar with game filter dropdown (populated dynamically via list_games()).
-- Grounded answer display card.
-- Separate "Sources Cited" section grouped by game.
-- Collapsible "Raw Retrieved Chunks" expander for developer debugging.
+- Conversational chat interface using Streamlit's native chat layout.
+- Conversational Memory: Contextual query reformulation and history integration.
+- Chunking Strategy Comparison: Dynamic UI toggling between recursive and fixed chunking.
 """
 
 import streamlit as st
@@ -23,24 +22,21 @@ from retrieve import retrieve, list_games
 from generate import generate_answer
 
 
-# 1. Warm up/Cache the RAG backend resources
+# 1. Warm up/Cache the RAG backend resources by collection
 @st.cache_resource
-def initialize_backend():
+def initialize_backend(collection_name: str):
     """
     Ensure the retriever's models and databases are initialized once
     and cached across page updates.
     """
     from retrieve import _load_resources
     try:
-        _load_resources()
+        _load_resources(collection_name)
         return True
     except Exception as e:
-        st.error(f"Failed to initialize database: {e}")
+        st.error(f"Failed to initialize database '{collection_name}': {e}")
         return False
 
-
-# Attempt initialization
-backend_ready = initialize_backend()
 
 # 2. Inject premium custom CSS for survival horror aesthetic
 st.markdown(
@@ -126,149 +122,39 @@ st.markdown(
         margin-top: 8px;
         text-shadow: 0 0 6px rgba(255, 176, 0, 0.5);
     }
-    
-    /* Answer Display container */
-    .answer-card {
-        background-color: #0c0e12 !important;
-        border: 2px double #ff3333 !important;
+
+    /* Custom Chat bubbles or blocks */
+    .chat-bubble-user {
+        border-left: 3px solid #ffb000 !important;
+        background-color: #0d0f12 !important;
+        padding: 12px 18px !important;
         border-radius: 4px !important;
-        padding: 24px;
-        margin-top: 25px;
-        margin-bottom: 30px;
-        box-shadow: 0 0 15px rgba(255, 51, 51, 0.15);
-        position: relative;
+        color: #ffb000 !important;
+        font-family: 'Courier Prime', monospace !important;
+        font-size: 1.05rem;
     }
-    
-    .answer-card::after {
-        content: "TERMINAL READOUT // RECORD SECURE";
-        position: absolute;
-        top: -12px;
-        left: 15px;
-        background-color: #07080a;
-        padding: 0 8px;
-        font-family: 'VT323', monospace;
-        font-size: 1rem;
-        color: #ff3333;
-        letter-spacing: 1px;
-    }
-    
-    .answer-header {
-        font-family: 'VT323', monospace;
-        font-size: 1.5rem;
-        color: #ff3333;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-bottom: 15px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        border-bottom: 1px solid rgba(255, 51, 51, 0.2);
-        padding-bottom: 8px;
-    }
-    
-    .answer-body {
+    .chat-bubble-assistant {
+        border-left: 3px solid #ff3333 !important;
+        background-color: #0c0e12 !important;
+        padding: 15px !important;
+        border-radius: 4px !important;
+        color: #dcdfdc !important;
+        font-family: 'Courier Prime', monospace !important;
         font-size: 1.05rem;
         line-height: 1.6;
-        color: #dcdfdc !important;
     }
     
     /* Sources display styling */
     .sources-title {
         font-family: 'VT323', monospace;
-        font-size: 1.5rem;
+        font-size: 1.3rem;
         color: #ffb000;
         text-transform: uppercase;
         letter-spacing: 1px;
-        margin-top: 25px;
-        margin-bottom: 15px;
-        border-bottom: 1px solid rgba(255, 176, 0, 0.3);
-        padding-bottom: 8px;
-    }
-    
-    .game-source-container {
-        background-color: #0a0b0e;
-        border: 1px dashed rgba(255, 176, 0, 0.3);
-        border-left: 4px solid #ffb000;
-        border-radius: 2px;
-        padding: 18px;
-        margin-bottom: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.4);
-    }
-    
-    .game-source-header {
-        font-family: 'VT323', monospace;
-        font-size: 1.2rem;
-        color: #ffb000;
-        margin-bottom: 12px;
-        border-bottom: 1px solid rgba(255, 176, 0, 0.15);
-        padding-bottom: 6px;
-        text-transform: uppercase;
-    }
-    
-    .source-document-link {
-        font-size: 0.95rem;
-        color: #8fa088;
+        margin-top: 15px;
         margin-bottom: 8px;
-        padding-left: 12px;
-        border-left: 2px solid rgba(255, 176, 0, 0.3);
-    }
-    
-    .source-doc-title {
-        font-weight: 600;
-        color: #dcdfdc;
-    }
-    
-    .source-doc-section {
-        color: #39ff14; /* Phosphor Green */
-        font-weight: 500;
-    }
-    
-    .source-doc-file {
-        font-family: 'VT323', monospace;
-        color: #556655;
-        font-size: 0.9rem;
-        margin-left: 5px;
-    }
-    
-    /* Custom buttons */
-    .stButton>button {
-        background-color: #8b0000 !important;
-        background-image: linear-gradient(180deg, #ff3333 0%, #8b0000 100%) !important;
-        color: white !important;
-        border: 1px solid #ff5555 !important;
-        border-radius: 4px !important;
-        padding: 8px 24px !important;
-        font-family: 'VT323', monospace !important;
-        font-size: 1.3rem !important;
-        letter-spacing: 1px !important;
-        transition: all 0.2s ease !important;
-        box-shadow: 0 4px 12px rgba(139, 0, 0, 0.4) !important;
-    }
-    
-    .stButton>button:hover {
-        transform: scale(1.02) !important;
-        box-shadow: 0 0 15px rgba(255, 51, 51, 0.6) !important;
-        border-color: #ff9999 !important;
-        color: white !important;
-    }
-    
-    /* Style Streamlit Input fields */
-    div[data-baseweb="input"] {
-        background-color: #0d0f12 !important;
-        border: 1px solid rgba(57, 255, 20, 0.2) !important;
-        border-radius: 4px !important;
-        transition: all 0.2s ease-in-out !important;
-    }
-    div[data-baseweb="input"]:focus-within {
-        border-color: #39ff14 !important;
-        box-shadow: 0 0 10px rgba(57, 255, 20, 0.4) !important;
-    }
-    div[data-baseweb="input"] input {
-        color: #39ff14 !important;
-        font-family: 'Courier Prime', monospace !important;
-    }
-    div[data-baseweb="input"] input::placeholder {
-        color: rgba(57, 255, 20, 0.3) !important;
+        border-bottom: 1px solid rgba(255, 176, 0, 0.2);
+        padding-bottom: 4px;
     }
     
     /* Scrollbar styling */
@@ -287,7 +173,7 @@ st.markdown(
         background: #ff3333;
     }
     
-    /* Selectbox styling */
+    /* Selectbox/Radio styling overrides */
     div[data-baseweb="select"] {
         background-color: #0d0f12 !important;
         border: 1px solid rgba(57, 255, 20, 0.2) !important;
@@ -302,8 +188,9 @@ st.markdown(
     /* Expander styling */
     div[data-testid="stExpander"] {
         background-color: #0d0f12 !important;
-        border: 1px solid rgba(57, 255, 20, 0.15) !important;
+        border: 1px solid rgba(255, 51, 51, 0.15) !important;
         border-radius: 4px !important;
+        margin-top: 10px;
     }
     
     /* Footer info */
@@ -320,7 +207,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# 3. Sidebar UI
+# 3. Sidebar UI - Configuration Control Console
 st.sidebar.markdown(
     """
     <div style='text-align: center; margin-bottom: 20px;'>
@@ -330,9 +217,22 @@ st.sidebar.markdown(
     unsafe_allow_html=True,
 )
 
+# Toggle Chunking Strategy Comparison
+strategy_label = st.sidebar.radio(
+    "Active Chunking Strategy:",
+    options=["Recursive Header-Based Chunks", "Fixed-Size Chunks"],
+    index=0,
+)
+collection_name = (
+    "horror_guides_recursive" if strategy_label == "Recursive Header-Based Chunks" else "horror_guides_fixed"
+)
+
+# Attempt initialization for active collection
+backend_ready = initialize_backend(collection_name)
+
 if backend_ready:
-    # Load games list dynamically
-    available_games = ["All Games"] + list_games()
+    # Load games list dynamically based on chosen collection
+    available_games = ["All Games"] + list_games(collection_name)
     selected_game = st.sidebar.selectbox(
         "Focus Archive search to a specific game:",
         options=available_games,
@@ -342,18 +242,24 @@ else:
     selected_game = "All Games"
     st.sidebar.warning("SYSTEM OFFLINE: Database unavailable.")
 
+# Sidebar Clear Memory control
 st.sidebar.markdown("---")
+if st.sidebar.button("Clear Archive Logs"):
+    st.session_state.messages = []
+    st.rerun()
+
 st.sidebar.markdown(
     """
     ### SYSTEM PROTOCOLS
     
-    This terminal enables secure retrieval of tactical walkthroughs and collectible archives.
+    This terminal enables secure multi-turn retrieval of tactical walkthroughs and collectible archives.
     
     **CORE SPECIFICATIONS:**
     - **VEC.MODEL**: `all-MiniLM-L6-v2`
     - **STORE**: `ChromaDB` (Local Node)
     - **SYNTHESIS**: `llama-3.3-70b` (Groq API)
-    - **GROUNDING**: STRICT (Grounded query compliance active)
+    - **CHAT REFORM**: `llama-3.1-8b` (Groq API)
+    - **CONV.MEMORY**: Active (RRF contextual query reformulation)
     """
 )
 
@@ -362,105 +268,152 @@ st.markdown(
     """
     <div class="header-card">
         <h1 class="header-title">🔦 Horror Guide Archive</h1>
-        <div class="header-subtitle">Grounded Survival & Walkthrough Intelligence Terminal</div>
+        <div class="header-subtitle">Grounded Conversational Walkthrough & Puzzle Intelligence Terminal</div>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-# Search Input
-query = st.text_input(
-    label="Search query:",
-    placeholder="e.g., where is the shotgun in Dead Space?",
-    label_visibility="collapsed",
-)
+# Initialize Session State messages
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-col1, col2 = st.columns([1, 6])
-with col1:
-    search_button = st.button("Query Archive")
-
-if (search_button or query) and query.strip():
-    if not backend_ready:
-        st.error("RAG pipeline cannot run because the ChromaDB backend is not initialized.")
-    else:
-        # Determine actual game filter parameter
-        game_filter = None if selected_game == "All Games" else selected_game
-
-        with st.spinner("Searching survival logs..."):
-            try:
-                # 1. Retrieve
-                chunks = retrieve(query, game_filter=game_filter, top_k=5)
-                
-                # 2. Generate
-                answer, sources = generate_answer(query, chunks)
-                
-                # 3. Render Answer Card
-                st.markdown(
-                    f"""
-                    <div class="answer-card">
-                        <div class="answer-header">
-                            <span>🔦</span> Survival Guidance
-                        </div>
-                        <div class="answer-body">
-                            {answer}
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-                # 4. Render Grouped Sources Section
-                if sources:
-                    st.markdown('<div class="sources-title">Sources Cited</div>', unsafe_allow_html=True)
-                    
+# Display conversation logs
+for msg in st.session_state.messages:
+    role = msg["role"]
+    content = msg["content"]
+    
+    with st.chat_message(role):
+        if role == "user":
+            st.markdown(f'<div class="chat-bubble-user">{content}</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="chat-bubble-assistant">{content}</div>', unsafe_allow_html=True)
+            
+            # Show sources for this turn
+            sources = msg.get("sources", [])
+            if sources:
+                with st.expander("Sources Cited"):
                     # Group sources by game title
                     grouped_sources = {}
                     for src in sources:
                         g = src.get("game", "Unknown Game")
                         if g not in grouped_sources:
                             grouped_sources[g] = []
-                        
-                        # Deduplicate sources sharing title + section header
                         doc_key = (src.get("title"), src.get("section_header"))
                         if doc_key not in [(s.get("title"), s.get("section_header")) for s in grouped_sources[g]]:
                             grouped_sources[g].append(src)
                     
-                    # Display grouped sources
                     for game_title, game_srcs in grouped_sources.items():
-                        st.markdown(
-                            f"""
-                            <div class="game-source-container">
-                                <div class="game-source-header">{game_title}</div>
-                            """,
-                            unsafe_allow_html=True,
-                        )
+                        st.markdown(f"**{game_title}**")
                         for s in game_srcs:
                             st.markdown(
-                                f"""
-                                <div class="source-document-link">
-                                    <span class="source-doc-title">{s.get('title', 'Guide')}</span> — 
-                                    <span class="source-doc-section">{s.get('section_header', 'Main')}</span> 
-                                    <span class="source-doc-file">[{s.get('source_file', '')}]</span>
-                                </div>
-                                """,
-                                unsafe_allow_html=True,
+                                f"- *{s.get('title', 'Guide')}* — **{s.get('section_header', 'Main')}** `[{s.get('source_file', '')}]`"
                             )
-                        st.markdown("</div>", unsafe_allow_html=True)
+                
+                # Show reformulated standalone query if it differs from the original
+                standalone = msg.get("standalone_query")
+                if standalone and standalone.lower() != msg.get("original_query", "").lower():
+                    st.caption(f"Contextual Standalone Query: *\"{standalone}\"*")
+                
+                # Show raw chunks debug
+                raw_chunks = msg.get("raw_chunks", [])
+                if raw_chunks:
+                    with st.expander("🔍 View Raw Chunks (Developer Debug)"):
+                        for idx, chunk in enumerate(raw_chunks, 1):
+                            st.markdown(
+                                f"**Chunk {idx}** | Game: `{chunk['game']}` | "
+                                f"File: `{chunk['source_file']}` (Index: `{chunk['chunk_index']}`) | "
+                                f"Distance: `{chunk['distance']}`"
+                            )
+                            st.code(chunk["text"], language="markdown")
+                            st.markdown("---")
 
-                # 5. Developer Debug Panel
-                st.markdown("---")
-                with st.expander("🔍 View Raw Chunks (Developer Debug)"):
-                    for idx, chunk in enumerate(chunks, 1):
-                        st.markdown(
-                            f"**Chunk {idx}** | Game: `{chunk['game']}` | "
-                            f"File: `{chunk['source_file']}` (Index: `{chunk['chunk_index']}`) | "
-                            f"Distance: `{chunk['distance']}`"
-                        )
-                        st.code(chunk["text"], language="markdown")
-                        st.markdown("---")
+# Handle new user message
+if query := st.chat_input("Enter your survival guide question...", key="chat_input"):
+    # Render user query bubble
+    with st.chat_message("user"):
+        st.markdown(f'<div class="chat-bubble-user">{query}</div>', unsafe_allow_html=True)
 
-            except Exception as e:
-                st.error(f"An error occurred while running the RAG pipeline: {e}")
+    # Prepare chat history turns for LLM (strictly text content, no source dicts)
+    chat_turns = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
+
+    with st.chat_message("assistant"):
+        if not backend_ready:
+            st.error("RAG pipeline cannot run because the ChromaDB backend is not initialized.")
+        else:
+            with st.spinner("Accessing archive files..."):
+                try:
+                    # 1. Contextual Query Reformulation
+                    from generate import reformulate_query
+                    standalone_q = reformulate_query(query, chat_turns)
+                    
+                    # 2. Determine game filter
+                    game_filter = None if selected_game == "All Games" else selected_game
+                    
+                    # 3. Retrieve chunks based on standalone query
+                    chunks = retrieve(
+                        standalone_q,
+                        game_filter=game_filter,
+                        top_k=5,
+                        collection_name=collection_name
+                    )
+                    
+                    # 4. Generate Grounded Answer (incorporating original query, chunks, and history)
+                    answer, sources = generate_answer(query, chunks, chat_turns)
+                    
+                    # 5. Render generated answer
+                    st.markdown(f'<div class="chat-bubble-assistant">{answer}</div>', unsafe_allow_html=True)
+                    
+                    # 6. Render sources list
+                    if sources:
+                        with st.expander("Sources Cited"):
+                            grouped_sources = {}
+                            for src in sources:
+                                g = src.get("game", "Unknown Game")
+                                if g not in grouped_sources:
+                                    grouped_sources[g] = []
+                                doc_key = (src.get("title"), src.get("section_header"))
+                                if doc_key not in [(s.get("title"), s.get("section_header")) for s in grouped_sources[g]]:
+                                    grouped_sources[g].append(src)
+                            
+                            for game_title, game_srcs in grouped_sources.items():
+                                st.markdown(f"**{game_title}**")
+                                for s in game_srcs:
+                                    st.markdown(
+                                        f"- *{s.get('title', 'Guide')}* — **{s.get('section_header', 'Main')}** `[{s.get('source_file', '')}]`"
+                                    )
+                        
+                        # Render query reformulation caption
+                        if standalone_q.lower() != query.lower():
+                            st.caption(f"Contextual Standalone Query: *\"{standalone_q}\"*")
+                        
+                        # Render developer raw chunks debug panel
+                        with st.expander("🔍 View Raw Chunks (Developer Debug)"):
+                            for idx, chunk in enumerate(chunks, 1):
+                                st.markdown(
+                                    f"**Chunk {idx}** | Game: `{chunk['game']}` | "
+                                    f"File: `{chunk['source_file']}` (Index: `{chunk['chunk_index']}`) | "
+                                    f"Distance: `{chunk['distance']}`"
+                                )
+                                st.code(chunk["text"], language="markdown")
+                                st.markdown("---")
+                                
+                    # 7. Append queries and responses to session state messages
+                    st.session_state.messages.append({
+                        "role": "user",
+                        "content": query,
+                    })
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": answer,
+                        "sources": sources,
+                        "original_query": query,
+                        "standalone_query": standalone_q,
+                        "raw_chunks": chunks,
+                    })
+                    
+                except Exception as e:
+                    st.error(f"An error occurred while running the RAG pipeline: {e}")
 
 # Footer
 st.markdown(

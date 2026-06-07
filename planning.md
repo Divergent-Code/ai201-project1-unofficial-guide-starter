@@ -219,6 +219,24 @@ documents/
 
 ---
 
+## Stretch Features
+
+### 1. Hybrid Search & RRF
+- **Implementation:** Integrates a local `SentenceTransformer` vector search with a pure-Python custom `BM25Scorer` to capture both semantic similarity and exact term matching. Rankings are fused using Reciprocal Rank Fusion (constant $k=60$).
+
+### 2. Metadata Filtering (Game & DLC Splits)
+- **Implementation:** Chunks are tagged with the associated game title during ingestion. ChromaDB searches are filtered on the `"game"` metadata field via prefix matches, allowing base game selections to automatically retrieve DLC content.
+
+### 3. Conversational Memory (Multi-Turn Chat)
+- **Standalone Query Reformulation:** When follow-up queries are entered in the chat interface, the system formats the previous chat turns and uses `llama-3.1-8b-instant` to rephrase the latest input into a standalone keyword/semantic search query.
+- **Contextual Generation:** The reformulated query is retrieved from ChromaDB, and the resulting chunks along with the active chat log are supplied to `llama-3.3-70b-versatile` to produce a grounded response.
+
+### 4. Chunking Strategy Comparison
+- **Fixed-Size Chunks Collection:** Ingests the corpus into a sliding window character-level chunker (~800 characters, 150 character overlap) and stores it in the `horror_guides_fixed` collection.
+- **Dynamic Selection UI:** Adds sidebar toggle buttons in `app.py` allowing users to swap active databases (`horror_guides_recursive` vs `horror_guides_fixed`) on the fly, comparing retrieval distance metrics and response formatting.
+
+---
+
 ## AI Tool Plan
 
 **Milestone 3 — Ingestion and chunking (`ingest.py`):**

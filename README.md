@@ -155,6 +155,31 @@ The Chunking Strategy section of `planning.md` — particularly the decision to 
 
 The spec described a TF-based keyword scorer for the lexical component of hybrid search. During implementation, this was upgraded to a full **BM25 scorer** (with IDF weighting, term frequency normalization, and document length normalization). The plain TF scorer failed on long documents like the Darkwood walkthrough (342KB) because common terms like "the" and "area" dominated scores regardless of query relevance. BM25's IDF term weights and length normalization corrected this, producing meaningful keyword scores even across the corpus's highly variable document lengths. The Reciprocal Rank Fusion merge logic remained unchanged from the spec.
 
+
+---
+
+## Stretch Features
+
+### 1. Hybrid Search
+We combined semantic vector retrieval (via `all-MiniLM-L6-v2`) with a custom lexical BM25 scorer. Candidates from both query lists are unified and ranked using Reciprocal Rank Fusion (RRF) with constant $k=60$ to optimize exact-keyword matches alongside conceptual semantic queries.
+
+### 2. Metadata Filtering (Game & DLC Matches)
+We implemented a metadata query pre-filter on ChromaDB. When filtering for a game (e.g., "Alan Wake II (2023)"), the filter matches base game keys as well as any DLC variations (e.g., "Alan Wake II (2023) — DLC Expansions") using prefix logic.
+
+### 3. Conversational Memory
+We migrated the interface to a chat-native layout and added contextual query reformulation. 
+- A fast, dedicated LLM turn (`llama-3.1-8b-instant`) takes the conversation log and reformulates follow-ups into standalone queries.
+- Standalone queries drive the hybrid retriever, and the resulting context is fed back alongside chat logs into `llama-3.3-70b-versatile` to yield grounded answers.
+
+### 4. Chunking Strategy Comparison
+We created two parallel collections inside ChromaDB:
+1. `horror_guides_recursive`: Splits documents by Markdown headings, prepending the active path hierarchy to each chunk (~800 characters, 150 character overlap, 2,681 total chunks).
+2. `horror_guides_fixed`: Splits documents using a fixed character window, prepending the document title (~800 characters, 150 character overlap, 2,310 total chunks).
+
+Users can dynamically toggle between strategies in the sidebar dropdown. Comparing results shows:
+- **Recursive Header-Based Chunks:** Retain strong chapter and section keywords, yielding lower distance metrics on game-specific structural queries (e.g., "Where is the safe puzzle in Chapter 3?").
+- **Fixed-Size Chunks:** Perform well on contiguous narrative explanations but are prone to returning unrelated context when a chunk starts mid-sentence or cuts off key terms at boundary markers.
+
 ---
 
 ## AI Usage

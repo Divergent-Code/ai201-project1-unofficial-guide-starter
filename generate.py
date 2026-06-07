@@ -20,13 +20,84 @@ DEFAULT_MODEL = "llama-3.3-70b-versatile"
 FALLBACK_MODEL = "llama-3.1-8b-instant"
 
 
-def generate_answer(query: str, retrieved_chunks: list[dict]) -> tuple[str, list[dict]]:
+def reformulate_query(query: str, chat_history: list[dict]) -> str:
     """
-    Generates an answer grounded strictly within the retrieved context passages using Groq.
+    Given a user's latest follow-up question and the chat history, rephrase it 
+    into a standalone search query. If there is no chat history, returns the query as-is.
+
+    Args:
+        query:        The latest user message.
+        chat_history: List of dicts representing past chat turns:
+                      [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
+
+    Returns:
+        The standalone query string.
+    """
+    if not chat_history or not GROQ_API_KEY:
+        return query
+
+    # Format history for the model
+    formatted_history = []
+    for turn in chat_history:
+        role = turn.get("role", "user")
+        content = turn.get("content", "")
+        formatted_history.append(f"{role.upper()}: {content}")
+        
+    history_str = "\n".join(formatted_history)
+    
+    system_prompt = (
+        "You are an AI assistant that helps formulate search queries for a gaming RAG system.\n"
+        "Your task is to analyze the conversation history and the user's latest follow-up question, "
+        "and rephrase the question into a standalone query that can be understood without any history.\n\n"
+        "Rules:\n"
+        "1. Do NOT answer the question. Only output the rephrased standalone query.\n"
+        "2. Keep the query concise and factual, focusing on key terms (e.g. game title, specific items, puzzles, or locations mentioned earlier).\n"
+        "3. If the user's question is already a standalone query and does not need any context from the history, return it exactly as-is.\n"
+        "4. Output ONLY the rephrased query string and nothing else."
+    )
+    
+    user_prompt = (
+        f"Conversation History:\n{history_str}\n\n"
+        f"Latest User Question: {query}\n\n"
+        f"Standalone Query:"
+    )
+    
+    client = Groq(api_key=GROQ_API_KEY)
+    
+    try:
+        completion = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            model="llama-3.1-8b-instant",  # fast model for query reformulation
+            temperature=0.0,
+            max_tokens=256,
+        )
+        reformulated = completion.choices[0].message.content.strip()
+        # Clean any surrounding quotes
+        if (reformulated.startswith('"') and reformulated.endswith('"')) or \
+           (reformulated.startswith("'") and reformulated.endswith("'")):
+            reformulated = reformulated[1:-1].strip()
+        return reformulated
+    except Exception as e:
+        print(f"[generate] Warning: Query reformulation failed ({e}). Using raw query.", file=sys.stderr)
+        return query
+
+
+def generate_answer(
+    query: str,
+    retrieved_chunks: list[dict],
+    chat_history: list[dict] | None = None,
+) -> tuple[str, list[dict]]:
+    """
+    Generates an answer grounded strictly within the retrieved context passages using Groq,
+    optionally incorporating previous conversation context.
 
     Args:
         query:            The user's question.
         retrieved_chunks: A list of retrieved chunk dicts (from retrieve.py).
+        chat_history:     Optional list of previous message dicts representing conversation history.
 
     Returns:
         tuple (answer, sources)
@@ -72,20 +143,27 @@ def generate_answer(query: str, retrieved_chunks: list[dict]) -> tuple[str, list
         "3. If the context passages do not contain enough information to answer the question, "
         "respond with exactly this phrase and nothing else:\n"
         "\"I couldn't find that in the guides I have.\"\n"
-        "4. Keep your answer clear, direct, and factual. Cite specific details from the passages."
+        "4. Keep your answer clear, direct, and factual. Cite specific details from the passages.\n"
+        "5. You are engaged in a conversation. Maintain continuity with the chat history if relevant, "
+        "but do NOT violate the grounding rule."
     )
 
-    user_prompt = f"Context passages:\n{context_str}\n\nUser Question: {query}"
+    messages = [{"role": "system", "content": system_prompt}]
+    
+    # 3. Add chat history for contextual generation
+    if chat_history:
+        for turn in chat_history:
+            messages.append({"role": turn["role"], "content": turn["content"]})
 
-    # 3. Call the Groq API
+    user_prompt = f"Context passages:\n{context_str}\n\nUser Question: {query}"
+    messages.append({"role": "user", "content": user_prompt})
+
+    # 4. Call the Groq API
     client = Groq(api_key=GROQ_API_KEY)
     
     try:
         completion = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
+            messages=messages,
             model=DEFAULT_MODEL,
             temperature=0.0,  # 0.0 temperature for maximum deterministic grounding
             max_tokens=1024,
@@ -96,10 +174,7 @@ def generate_answer(query: str, retrieved_chunks: list[dict]) -> tuple[str, list
         print(f"[generate] Warning: Primary model failed ({e}). Trying fallback model...", file=sys.stderr)
         try:
             completion = client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
+                messages=messages,
                 model=FALLBACK_MODEL,
                 temperature=0.0,
                 max_tokens=1024,
