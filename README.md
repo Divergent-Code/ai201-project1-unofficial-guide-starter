@@ -189,17 +189,17 @@ We verified our conversational memory and dual-chunking selection using the **Fi
 ### 1. Multi-Turn Query: Turn 1 ("Who is Daniel in Amnesia?")
 A standalone question about the protagonist's background retrieves the corresponding details and returns a grounded summary of Daniel waking up in Brennenburg Castle.
 
-![Turn 1 search result displaying a grounded summary of Daniel.](C:/Users/onika/.gemini/antigravity-ide/brain/3ca5996c-e59c-4cbf-843d-edbed9df358d/media__1780795113032.png)
+![Turn 1 search result displaying a grounded summary of Daniel.](screenshots/turn1_query.png)
 
 ### 2. Developer Debug: Chunks Inspection
 Inspecting the raw chunks retrieved for Turn 1 shows Chunk 1 (distance `0.4311`) and Chunk 2 (distance `0.4844`) containing the prepended `[Document: Amnesia...]` title tags.
 
-![Turn 1 Developer Debug pane detailing distance scores and text slices.](C:/Users/onika/.gemini/antigravity-ide/brain/3ca5996c-e59c-4cbf-843d-edbed9df358d/media__1780795141666.png)
+![Turn 1 Developer Debug pane detailing distance scores and text slices.](screenshots/debug_chunks.png)
 
 ### 3. Multi-Turn Query: Turn 2 ("What happens if his sanity drops to zero?")
 The user enters a contextual follow-up query containing the pronoun "his". The model reformulates this to `"What happens when Amnesia protagonist's sanity reaches zero?"` under the hood, queries ChromaDB, and returns a grounded answer.
 
-![Turn 2 response verifying conversational memory query reformulation.](C:/Users/onika/.gemini/antigravity-ide/brain/3ca5996c-e59c-4cbf-843d-edbed9df358d/media__1780795170475.png)
+![Turn 2 response verifying conversational memory query reformulation.](screenshots/turn2_query.png)
 
 ---
 
