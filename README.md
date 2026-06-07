@@ -108,7 +108,7 @@ Each retrieved chunk is injected into the user-turn prompt as a numbered passage
 | 2 | Where is the Bloodstained Bracelet found in the Silent Hill 2 Remake, and what do you need to get it? | Pool (Pool Wall — Eye) on 2F of Brookhaven Hospital. Requires combining Bent Needle + Medical Tube first; Pool Hatch must be accessible. | Found between the dive boards at the pool area where there is an eye with leakage; retrieved the Bracelet Puzzle section as a top source (distance 0.28). | Relevant | Partially Accurate |
 | 3 | How do you defeat the Leviathan boss in Dead Space? | Phase 1: Shoot glowing yellow spots at tentacle bases. Phase 2: Shoot orange core in mouth, use Kinesis to redirect explosive balls back in. Phase 3: Both attacks combined. | Correctly described three phases: Phase 1 side walkways + yellow glowing spots on tentacles; Phase 2 ADS cannon usage; Phase 3 combined. | Relevant | Accurate |
 | 4 | In Resident Evil 4 Remake, what is the Blue Medallion challenge and how many are there? | Blue Medallions are hanging targets found throughout the game that must be shot to complete Merchant requests. Number varies by region/chapter. | Described Blue Medallions as targets to destroy for a Merchant Request; number and exact locations partially covered. | Relevant | Partially Accurate |
-| 5 | What is the WAU in SOMA and why is it a threat? | WAU (Warden Unit Automation) is PATHOS-II's facility management AI that went rogue, forcibly integrating humans with machinery to "preserve" them. Avoidance rather than combat is the strategy. | "I couldn't find that in the guides I have." — complete retrieval failure; all 5 retrieved chunks had distances above 0.65. | Off-target | Inaccurate |
+| 5 | How long does it take to beat Darkwood? | A normal Darkwood playthrough runs roughly 20–30 hours. The guide only mentions a ~34-minute figure as an optimized Day-1 *speedrun* feat (Nightmare difficulty, Prologue skipped) — not a typical completion time. | "...complete Darkwood in around 34 minutes on Nightmare difficulty, skipping the Prologue, as achieved by the guide author." — presented a speedrun feat as the general completion time. | Partially relevant (right topic, edge-case chunk) | Inaccurate (grounded but misleading) |
 
 **Retrieval quality:** Relevant / Partially relevant / Off-target  
 **Response accuracy:** Accurate / Partially accurate / Inaccurate
@@ -119,24 +119,25 @@ Each retrieved chunk is injected into the user-turn prompt as a numbered passage
 
 **Question that failed:**
 
-*"What is the WAU in SOMA and why is it a threat?"* (with game filter: SOMA (2015))
+*"How long does it take to beat Darkwood?"* (with game filter: Darkwood (2017))
 
 **What the system returned:**
 
-> "I couldn't find that in the guides I have."
+> "According to Passage 5, it is possible to complete Darkwood in around 34 minutes on Nightmare difficulty, skipping the Prologue, as achieved by the guide author."
 
-All 5 retrieved chunks had cosine distances above 0.65 (with the top result at 0.783), indicating that the retriever found no meaningfully relevant passage. The system correctly refused to hallucinate an answer but was unable to find the information at all.
+The answer is **grounded but misleading**. A normal Darkwood playthrough takes roughly 20–30 hours; the "~34 minutes" figure comes from the guide's dedicated `2.7 Speedruns` section and describes an optimized Day-1 speedrun feat, not the time a typical player should expect. The system presented an edge-case statistic as if it were the general completion time.
 
 **Root cause (tied to a specific pipeline stage):**
 
-The failure originates at the **Chunking** stage and compounds into a **Retrieval** failure. The SOMA walkthrough is structured as a strict location-by-location guide (Upsilon Facility → Phi Site → Lambda → Tau → etc.). The WAU is a lore concept — a rogue facility AI — whose description is distributed across contextual asides embedded within walkthrough prose rather than collected under a dedicated heading such as `### What is the WAU?`. Because the chunker splits on Markdown headings, the WAU's description ends up fragmented across multiple walkthrough-step chunks. No single chunk has sufficient semantic density around the phrase "WAU" or "Warden Unit Automation" for the embedding model to surface it as a top result for a conceptual lore query. The very high cosine distances confirm near-random retrieval — nothing in the index closely matched the question's semantic space.
+This is a **Retrieval-framing failure that the grounding constraint amplifies**, not a generation hallucination. The corpus contains no section stating a typical playthrough length — Darkwood guides assume players already know it is a long game — so the only chunk densely associated with completion *time* is the `2.7 Speedruns` section. Retrieval surfaced that chunk as the top time-related result (distance 0.301), and because the system prompt forbids the model from using any outside knowledge, the generator could not add the real-world caveat that a normal run is far longer. The grounding rule that protects against hallucination here actively works against the answer: the model faithfully reports the one time figure it was given, even though that figure answers a different question (how fast *can* it be beaten) than the one asked (how long *does* it take). This illustrates the core RAG lesson that **grounded ≠ correct** — a faithful answer drawn from a real passage can still mislead if retrieval surfaces an unrepresentative chunk.
 
 **What you would change to fix it:**
 
-Two targeted fixes would address this:
+Three targeted fixes would address this:
 
-1. **Source-side preprocessing**: Add a short dedicated "Lore and Key Concepts" section to the SOMA walkthrough document that consolidates WAU, SOMA, and key entity explanations under a single `### Lore` heading, making them chunk-able and retrievable as a unit.
-2. **Chunk metadata enrichment**: During ingestion, detect named entities (e.g., "WAU", "PATHOS-II") in the document and store them as searchable metadata tags. A keyword pre-filter on the metadata tag "WAU" before vector search would surface the relevant chunks regardless of embedding distance.
+1. **Source-side preprocessing**: Add a short "Game Length / What to Expect" section to each walkthrough stating a typical completion-time range, giving retrieval a representative chunk to surface for "how long" queries.
+2. **Retrieval-time chunk-type awareness**: Tag sections like `Speedruns` with a metadata flag and down-weight or exclude them for general informational queries, so an edge-case chunk cannot become the primary answer source.
+3. **Prompt refinement**: Instruct the model to flag when its only supporting passage describes an extreme or optional scenario (e.g., a speedrun), so a misleading-but-grounded answer is surfaced as a caveat rather than stated as fact.
 
 ---
 
