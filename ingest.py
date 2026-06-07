@@ -80,8 +80,8 @@ def _hard_split(text: str, header: str) -> list[str]:
     """
     Last-resort character-level split for chunks that still exceed CHUNK_HARD_CAP
     after paragraph splitting (e.g. Darkwood table blocks with no blank lines).
-    Splits at the nearest sentence boundary ('. ') or falls back to raw character
-    position. Re-prepends the heading to each piece.
+    Splits at the nearest line break (\n) or sentence boundary ('. ') or falls back 
+    to raw character position. Re-prepends the heading to each piece.
 
     Args:
         text:   The oversized chunk text (heading already included as first line).
@@ -99,10 +99,15 @@ def _hard_split(text: str, header: str) -> list[str]:
 
     while len(remaining) > CHUNK_HARD_CAP:
         split_at = CHUNK_HARD_CAP
-        # Try to find the last sentence boundary before the cap
-        boundary = remaining.rfind('. ', 0, CHUNK_HARD_CAP)
-        if boundary > CHUNK_HARD_CAP // 2:
-            split_at = boundary + 2  # include the '. '
+        # 1. Try to find the last newline before the cap to preserve table/list row integrity
+        boundary_nl = remaining.rfind('\n', 0, CHUNK_HARD_CAP)
+        if boundary_nl > CHUNK_HARD_CAP // 2:
+            split_at = boundary_nl + 1  # include the newline character
+        else:
+            # 2. Try to find the last sentence boundary before the cap
+            boundary = remaining.rfind('. ', 0, CHUNK_HARD_CAP)
+            if boundary > CHUNK_HARD_CAP // 2:
+                split_at = boundary + 2  # include the '. '
         piece = remaining[:split_at].strip()
         if piece:
             pieces.append(piece)

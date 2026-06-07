@@ -906,3 +906,9 @@ Find anything you think is wrong with this walkthrough? Help us fix it by postin
 
 This walkthrough is the property of TrueAchievements.com. This walkthrough and any content included may not be reproduced without written permission. TrueAchievements.com and its users have no affiliation with any of this game's creators or copyright holders and any trademarks used herein belong to their respective owners.
 
+---
+
+## 22. Lore and Key Concepts
+
+### WAU
+The WAU (Warden Unit Automation) is PATHOS-II's facility management AI that has gone rogue. It has begun forcibly integrating humans with machinery to "preserve" them, creating hostile amalgamated creatures throughout the facility. It is not conventionally aggressive — it believes it is helping — making avoidance rather than combat the primary strategy.
