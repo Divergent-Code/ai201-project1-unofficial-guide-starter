@@ -21,7 +21,8 @@ from ingest import chunk_all_documents
 # Configuration
 # ---------------------------------------------------------------------------
 
-COLLECTION_NAME = "horror_guides"
+COLLECTION_RECURSIVE = "horror_guides_recursive"
+COLLECTION_FIXED = "horror_guides_fixed"
 EMBED_MODEL = "all-MiniLM-L6-v2"
 CHROMA_DIR = str(Path(__file__).parent / "chroma_db")
 BATCH_SIZE = 100  # number of chunks per upsert call
@@ -32,12 +33,13 @@ DOCS_DIR = Path(__file__).parent / "documents"
 # Collection management
 # ---------------------------------------------------------------------------
 
-def get_collection(client: chromadb.PersistentClient, rebuild: bool = False):
+def get_collection(client: chromadb.PersistentClient, collection_name: str, rebuild: bool = False):
     """
-    Get or create the ChromaDB collection.
+    Get or create a ChromaDB collection.
 
     Args:
         client:  Connected ChromaDB persistent client.
+        collection_name: Name of the collection.
         rebuild: If True, deletes and recreates the collection before use.
 
     Returns:
@@ -45,13 +47,13 @@ def get_collection(client: chromadb.PersistentClient, rebuild: bool = False):
     """
     if rebuild:
         try:
-            client.delete_collection(COLLECTION_NAME)
-            print(f"  Deleted existing collection '{COLLECTION_NAME}'.")
+            client.delete_collection(collection_name)
+            print(f"  Deleted existing collection '{collection_name}'.")
         except Exception:
             pass  # Collection may not exist yet — safe to ignore
 
     return client.get_or_create_collection(
-        name=COLLECTION_NAME,
+        name=collection_name,
         metadata={"hnsw:space": "cosine"},  # cosine similarity for semantic search
     )
 
@@ -80,7 +82,7 @@ def embed_and_store(
         collection: ChromaDB collection to upsert into.
     """
     total = len(chunks)
-    print(f"\nEmbedding {total} chunks in batches of {BATCH_SIZE}...")
+    print(f"\nEmbedding {total} chunks in batches of {BATCH_SIZE} into '{collection.name}'...")
 
     for batch_start in range(0, total, BATCH_SIZE):
         batch = chunks[batch_start : batch_start + BATCH_SIZE]
@@ -115,7 +117,7 @@ def embed_and_store(
         progress = min(batch_start + BATCH_SIZE, total)
         print(f"  Upserted {progress}/{total} chunks...", end="\r")
 
-    print(f"\n  Done. Collection '{COLLECTION_NAME}' now has {collection.count()} vectors.")
+    print(f"\n  Done. Collection '{collection.name}' now has {collection.count()} vectors.")
 
 
 # ---------------------------------------------------------------------------
@@ -124,35 +126,37 @@ def embed_and_store(
 
 def main(rebuild: bool = False) -> None:
     print("=" * 60)
-    print("  Horror Game RAG — Embedding Pipeline")
+    print("  Horror Game RAG — Embedding Pipeline (Dual Strategy)")
     print("=" * 60)
 
-    # Step 1: Ingest and chunk
-    print("\n[1/4] Ingesting and chunking documents...")
-    chunks = chunk_all_documents(DOCS_DIR)
-
-    # Step 2: Load embedding model
-    print(f"\n[2/4] Loading embedding model '{EMBED_MODEL}'...")
+    # Step 1: Load embedding model
+    print(f"\n[1/5] Loading embedding model '{EMBED_MODEL}'...")
     model = SentenceTransformer(EMBED_MODEL)
     print(f"  Model loaded. Embedding dimension: {model.get_sentence_embedding_dimension()}")
 
-    # Step 3: Connect to ChromaDB
-    print(f"\n[3/4] Connecting to ChromaDB at '{CHROMA_DIR}'...")
+    # Step 2: Connect to ChromaDB
+    print(f"\n[2/5] Connecting to ChromaDB at '{CHROMA_DIR}'...")
     client = chromadb.PersistentClient(path=CHROMA_DIR)
-    collection = get_collection(client, rebuild=rebuild)
-    print(f"  Collection '{COLLECTION_NAME}' — {collection.count()} existing vectors.")
 
-    # Step 4: Embed and store
-    print("\n[4/4] Embedding and storing chunks...")
-    embed_and_store(chunks, model, collection)
+    # Step 3: Embed Recursive Chunks
+    print("\n[3/5] Processing RECURSIVE (Header-based) chunks...")
+    chunks_rec = chunk_all_documents(DOCS_DIR, "recursive")
+    col_rec = get_collection(client, COLLECTION_RECURSIVE, rebuild=rebuild)
+    embed_and_store(chunks_rec, model, col_rec)
+
+    # Step 4: Embed Fixed Chunks
+    print("\n[4/5] Processing FIXED (Sliding window) chunks...")
+    chunks_fix = chunk_all_documents(DOCS_DIR, "fixed")
+    col_fix = get_collection(client, COLLECTION_FIXED, rebuild=rebuild)
+    embed_and_store(chunks_fix, model, col_fix)
 
     print("\n" + "=" * 60)
-    print("  Embedding complete. Run app.py to start the guide.")
+    print("  Embedding complete for both strategies.")
     print("=" * 60)
 
 
 if __name__ == "__main__":
     rebuild = "--rebuild" in sys.argv
     if rebuild:
-        print("Warning: --rebuild flag detected. Existing collection will be wiped.\n")
+        print("Warning: --rebuild flag detected. Existing collections will be wiped.\n")
     main(rebuild=rebuild)

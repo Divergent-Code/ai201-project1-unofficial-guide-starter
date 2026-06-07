@@ -301,12 +301,85 @@ def chunk_document(md_path: Path, metadata: dict) -> list[dict]:
     return chunks
 
 
+def chunk_document_fixed(
+    md_path: Path,
+    metadata: dict,
+    chunk_size: int = 800,
+    overlap: int = 150,
+) -> list[dict]:
+    """
+    Chunk a single document using a fixed-size sliding character window.
+    Prepends document metadata tags so it has basic game/doc context.
+
+    Args:
+        md_path:  Path to the .md file.
+        metadata: Sidecar metadata dict from load_metadata().
+        chunk_size: Target size of each chunk in characters.
+        overlap: Character overlap between consecutive chunks.
+
+    Returns:
+        List of chunk dicts.
+    """
+    with open(md_path, 'r', encoding='utf-8') as f:
+        text = f.read()
+
+    # Normalize newlines
+    text = text.replace('\r\n', '\n')
+
+    # Prepend basic context header to every chunk for parity in vector search
+    doc_prefix = f"[Document: {metadata['title']}]\n"
+    prefix_len = len(doc_prefix)
+
+    slice_size = max(100, chunk_size - prefix_len)
+    slice_overlap = max(10, overlap)
+
+    chunks = []
+    idx = 0
+    start = 0
+
+    while start < len(text):
+        end = start + slice_size
+        chunk_text = text[start:end]
+
+        # Adjust to newline/word boundaries to avoid splitting mid-word
+        if end < len(text):
+            search_start = max(start, end - slice_overlap)
+            last_space = text.rfind('\n', search_start, end)
+            if last_space == -1 or last_space <= search_start:
+                last_space = text.rfind('. ', search_start, end)
+            if last_space == -1 or last_space <= search_start:
+                last_space = text.rfind(' ', search_start, end)
+
+            if last_space != -1 and last_space > search_start:
+                end = last_space
+                chunk_text = text[start:end]
+
+        chunk_body = chunk_text.strip()
+        if len(chunk_body) >= MIN_CHUNK_SIZE:
+            full_text = f"{doc_prefix}{chunk_body}"
+            chunks.append({
+                'text': full_text,
+                'game': metadata['game'],
+                'title': metadata['title'],
+                'category': metadata['category'],
+                'section_header': metadata['title'],  # no dynamic headers for fixed size
+                'source_file': md_path.name,
+                'chunk_index': idx,
+            })
+            idx += 1
+
+        start = end - slice_overlap
+        if start >= len(text) - MIN_CHUNK_SIZE:
+            break
+
+    return chunks
+
 
 # ---------------------------------------------------------------------------
 # Batch ingestion
 # ---------------------------------------------------------------------------
 
-def chunk_all_documents(docs_dir: str | Path) -> list[dict]:
+def chunk_all_documents(docs_dir: str | Path, strategy: str = "recursive") -> list[dict]:
     """
     Ingest and chunk all .md documents in a directory.
 
@@ -315,10 +388,10 @@ def chunk_all_documents(docs_dir: str | Path) -> list[dict]:
 
     Args:
         docs_dir: Path to the documents directory.
+        strategy: 'recursive' for header-based chunking, 'fixed' for character sliding window.
 
     Returns:
-        Flat list of all chunk dicts across all documents, ordered by
-        source file then chunk index.
+        Flat list of all chunk dicts across all documents.
     """
     docs_dir = Path(docs_dir)
     md_files = sorted(docs_dir.glob('*.md'))
@@ -328,11 +401,14 @@ def chunk_all_documents(docs_dir: str | Path) -> list[dict]:
         if md_path.name == '.gitkeep':
             continue
         metadata = load_metadata(md_path)
-        doc_chunks = chunk_document(md_path, metadata)
+        if strategy == "fixed":
+            doc_chunks = chunk_document_fixed(md_path, metadata)
+        else:
+            doc_chunks = chunk_document(md_path, metadata)
         all_chunks.extend(doc_chunks)
         print(f"  [{md_path.name}] → {len(doc_chunks)} chunks  (game: {metadata['game']})")
 
-    print(f"\nTotal chunks: {len(all_chunks)}")
+    print(f"\nTotal chunks ({strategy}): {len(all_chunks)}")
     return all_chunks
 
 
