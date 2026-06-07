@@ -47,166 +47,273 @@ st.markdown(
     """
     <style>
     /* Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Special+Elite&family=VT323&display=swap');
+    
+    /* CRT subtle pulsing glow */
+    @keyframes pulse {
+        0% { opacity: 0.94; }
+        50% { opacity: 1; }
+        100% { opacity: 0.94; }
+    }
+    
+    /* Vignette and CRT grid overlay combined */
+    .stApp::before {
+        content: " ";
+        display: block;
+        position: fixed;
+        top: 0; left: 0; bottom: 0; right: 0;
+        background: 
+            linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%), 
+            linear-gradient(90deg, rgba(255, 0, 0, 0.05), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.05));
+        z-index: 999;
+        background-size: 100% 4px, 6px 100%;
+        pointer-events: none;
+    }
     
     /* Background and global text color */
     .stApp {
-        background-color: #0b0c10;
-        color: #c5c6c7;
-        font-family: 'Outfit', sans-serif;
+        background-color: #07080a !important;
+        color: #8fa088 !important; /* phosphor green / muted military green */
+        font-family: 'Courier Prime', monospace !important;
+        animation: pulse 6s infinite;
     }
     
     /* Sidebar customization */
     [data-testid="stSidebar"] {
-        background-color: #12131c;
-        border-right: 1px solid rgba(255, 75, 75, 0.15);
+        background-color: #0c0e12 !important;
+        border-right: 2px solid #8b0000 !important;
     }
     
-    /* Header card */
+    [data-testid="stSidebar"] h2 {
+        font-family: 'VT323', monospace !important;
+        font-size: 2.2rem !important;
+        text-shadow: 0 0 8px rgba(255, 51, 51, 0.4);
+    }
+    
+    /* Customize text inside sidebar */
+    [data-testid="stSidebar"] .stMarkdown {
+        font-family: 'Courier Prime', monospace !important;
+        color: #8fa088 !important;
+    }
+    
+    /* Header card styled as a decayed warning console */
     .header-card {
-        background: linear-gradient(135deg, rgba(255, 75, 75, 0.05) 0%, rgba(143, 148, 251, 0.03) 100%);
-        border: 1px solid rgba(255, 75, 75, 0.15);
-        border-radius: 12px;
+        background-color: #0d0f12;
+        border: 2px solid #8b0000;
+        border-radius: 4px;
         padding: 30px;
         margin-bottom: 30px;
         text-align: center;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        box-shadow: 0 0 20px rgba(139, 0, 0, 0.3);
+        position: relative;
     }
     
     .header-title {
-        font-family: 'Share Tech Mono', monospace;
-        font-size: 2.5rem;
-        color: #ff4b4b; /* Crimson Red */
+        font-family: 'VT323', monospace !important;
+        font-size: 3.5rem !important;
+        color: #ff3333 !important; /* Crimson Red */
         text-transform: uppercase;
         letter-spacing: 3px;
         margin: 0;
-        text-shadow: 0 0 10px rgba(255, 75, 75, 0.3);
+        text-shadow: 0 0 12px rgba(255, 51, 51, 0.7);
     }
     
     .header-subtitle {
-        font-size: 1.1rem;
-        color: #8f94fb; /* Lavender Blue */
+        font-family: 'VT323', monospace !important;
+        font-size: 1.4rem !important;
+        color: #ffb000 !important; /* Decayed Amber */
         letter-spacing: 1.5px;
         margin-top: 8px;
+        text-shadow: 0 0 6px rgba(255, 176, 0, 0.5);
     }
     
     /* Answer Display container */
     .answer-card {
-        background-color: #16171f;
-        border-left: 5px solid #ff4b4b;
-        border-top: 1px solid rgba(255, 255, 255, 0.04);
-        border-right: 1px solid rgba(255, 255, 255, 0.04);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-        border-radius: 4px 12px 12px 4px;
+        background-color: #0c0e12 !important;
+        border: 2px double #ff3333 !important;
+        border-radius: 4px !important;
         padding: 24px;
-        margin-top: 20px;
+        margin-top: 25px;
         margin-bottom: 30px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+        box-shadow: 0 0 15px rgba(255, 51, 51, 0.15);
+        position: relative;
+    }
+    
+    .answer-card::after {
+        content: "TERMINAL READOUT // RECORD SECURE";
+        position: absolute;
+        top: -12px;
+        left: 15px;
+        background-color: #07080a;
+        padding: 0 8px;
+        font-family: 'VT323', monospace;
+        font-size: 1rem;
+        color: #ff3333;
+        letter-spacing: 1px;
     }
     
     .answer-header {
-        font-family: 'Share Tech Mono', monospace;
-        font-size: 1.3rem;
-        color: #ff4b4b;
+        font-family: 'VT323', monospace;
+        font-size: 1.5rem;
+        color: #ff3333;
         text-transform: uppercase;
         letter-spacing: 1px;
         margin-bottom: 15px;
         display: flex;
         align-items: center;
         gap: 8px;
-        border-bottom: 1px solid rgba(255, 75, 75, 0.2);
+        border-bottom: 1px solid rgba(255, 51, 51, 0.2);
         padding-bottom: 8px;
     }
     
     .answer-body {
         font-size: 1.05rem;
         line-height: 1.6;
-        color: #e5e6eb;
+        color: #dcdfdc !important;
     }
     
     /* Sources display styling */
     .sources-title {
-        font-family: 'Share Tech Mono', monospace;
-        font-size: 1.3rem;
-        color: #8f94fb;
+        font-family: 'VT323', monospace;
+        font-size: 1.5rem;
+        color: #ffb000;
         text-transform: uppercase;
         letter-spacing: 1px;
         margin-top: 25px;
         margin-bottom: 15px;
-        border-bottom: 1px solid rgba(143, 148, 251, 0.2);
+        border-bottom: 1px solid rgba(255, 176, 0, 0.3);
         padding-bottom: 8px;
     }
     
     .game-source-container {
-        background-color: #12131a;
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 8px;
+        background-color: #0a0b0e;
+        border: 1px dashed rgba(255, 176, 0, 0.3);
+        border-left: 4px solid #ffb000;
+        border-radius: 2px;
         padding: 18px;
         margin-bottom: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.4);
     }
     
     .game-source-header {
-        font-family: 'Share Tech Mono', monospace;
-        font-size: 1.1rem;
-        color: #4ef083; /* Neon Green */
+        font-family: 'VT323', monospace;
+        font-size: 1.2rem;
+        color: #ffb000;
         margin-bottom: 12px;
-        border-bottom: 1px solid rgba(78, 240, 131, 0.15);
+        border-bottom: 1px solid rgba(255, 176, 0, 0.15);
         padding-bottom: 6px;
+        text-transform: uppercase;
     }
     
     .source-document-link {
         font-size: 0.95rem;
-        color: #c5c6c7;
+        color: #8fa088;
         margin-bottom: 8px;
         padding-left: 12px;
-        border-left: 2px solid rgba(143, 148, 251, 0.4);
+        border-left: 2px solid rgba(255, 176, 0, 0.3);
     }
     
     .source-doc-title {
         font-weight: 600;
-        color: #e5e6eb;
+        color: #dcdfdc;
     }
     
     .source-doc-section {
-        color: #8f94fb;
+        color: #39ff14; /* Phosphor Green */
         font-weight: 500;
     }
     
     .source-doc-file {
-        font-family: 'Share Tech Mono', monospace;
-        color: #6c757d;
-        font-size: 0.8rem;
+        font-family: 'VT323', monospace;
+        color: #556655;
+        font-size: 0.9rem;
         margin-left: 5px;
     }
     
     /* Custom buttons */
     .stButton>button {
-        background: linear-gradient(135deg, #ff4b4b 0%, #a82c2c 100%) !important;
+        background-color: #8b0000 !important;
+        background-image: linear-gradient(180deg, #ff3333 0%, #8b0000 100%) !important;
         color: white !important;
-        border: none !important;
-        border-radius: 8px !important;
-        padding: 10px 28px !important;
-        font-family: 'Share Tech Mono', monospace !important;
-        font-size: 1.1rem !important;
+        border: 1px solid #ff5555 !important;
+        border-radius: 4px !important;
+        padding: 8px 24px !important;
+        font-family: 'VT323', monospace !important;
+        font-size: 1.3rem !important;
         letter-spacing: 1px !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 15px rgba(255, 75, 75, 0.25) !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 4px 12px rgba(139, 0, 0, 0.4) !important;
     }
     
     .stButton>button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(255, 75, 75, 0.45) !important;
-        background: linear-gradient(135deg, #ff6b6b 0%, #b83c3c 100%) !important;
+        transform: scale(1.02) !important;
+        box-shadow: 0 0 15px rgba(255, 51, 51, 0.6) !important;
+        border-color: #ff9999 !important;
+        color: white !important;
+    }
+    
+    /* Style Streamlit Input fields */
+    div[data-baseweb="input"] {
+        background-color: #0d0f12 !important;
+        border: 1px solid rgba(57, 255, 20, 0.2) !important;
+        border-radius: 4px !important;
+        transition: all 0.2s ease-in-out !important;
+    }
+    div[data-baseweb="input"]:focus-within {
+        border-color: #39ff14 !important;
+        box-shadow: 0 0 10px rgba(57, 255, 20, 0.4) !important;
+    }
+    div[data-baseweb="input"] input {
+        color: #39ff14 !important;
+        font-family: 'Courier Prime', monospace !important;
+    }
+    div[data-baseweb="input"] input::placeholder {
+        color: rgba(57, 255, 20, 0.3) !important;
+    }
+    
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #07080a;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #1b2616;
+        border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #ff3333;
+    }
+    
+    /* Selectbox styling */
+    div[data-baseweb="select"] {
+        background-color: #0d0f12 !important;
+        border: 1px solid rgba(57, 255, 20, 0.2) !important;
+        border-radius: 4px !important;
+    }
+    div[data-baseweb="select"] div {
+        color: #39ff14 !important;
+        font-family: 'VT323', monospace !important;
+        font-size: 1.1rem !important;
+    }
+    
+    /* Expander styling */
+    div[data-testid="stExpander"] {
+        background-color: #0d0f12 !important;
+        border: 1px solid rgba(57, 255, 20, 0.15) !important;
+        border-radius: 4px !important;
     }
     
     /* Footer info */
     .footer-info {
         text-align: center;
         margin-top: 50px;
-        font-size: 0.8rem;
+        font-size: 0.85rem;
         color: #495057;
-        font-family: 'Share Tech Mono', monospace;
+        font-family: 'VT323', monospace;
+        letter-spacing: 1px;
     }
     </style>
     """,
@@ -217,7 +324,7 @@ st.markdown(
 st.sidebar.markdown(
     """
     <div style='text-align: center; margin-bottom: 20px;'>
-        <h2 style='font-family: "Share Tech Mono", monospace; color: #ff4b4b; letter-spacing: 1px;'>ARCHIVE CONTROL</h2>
+        <h2 style='font-family: "VT323", monospace; color: #ff3333; letter-spacing: 2px;'>ARCHIVE CONTROL</h2>
     </div>
     """,
     unsafe_allow_html=True,
@@ -233,18 +340,20 @@ if backend_ready:
     )
 else:
     selected_game = "All Games"
-    st.sidebar.warning("Database unavailable.")
+    st.sidebar.warning("SYSTEM OFFLINE: Database unavailable.")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown(
     """
-    ### About the Archive
-    This system is a **Retrieval-Augmented Generation (RAG)** pipeline grounded on community survival guides for horror games.
+    ### SYSTEM PROTOCOLS
     
-    **How it works:**
-    1. Your query is embedded using `all-MiniLM-L6-v2`.
-    2. The local `ChromaDB` finds the top 5 most relevant passages.
-    3. The `llama-3.3-70b-versatile` LLM is prompted via Groq with strict grounding rules to guarantee the response is derived *only* from the guides.
+    This terminal enables secure retrieval of tactical walkthroughs and collectible archives.
+    
+    **CORE SPECIFICATIONS:**
+    - **VEC.MODEL**: `all-MiniLM-L6-v2`
+    - **STORE**: `ChromaDB` (Local Node)
+    - **SYNTHESIS**: `llama-3.3-70b` (Groq API)
+    - **GROUNDING**: STRICT (Grounded query compliance active)
     """
 )
 
