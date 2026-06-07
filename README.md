@@ -4,11 +4,6 @@
 
 ## Domain
 
-<!-- What topic or category of knowledge does your system cover?
-     Why is this knowledge valuable, and why is it hard to find through official channels?
-     Example: "Student reviews of CS professors at [university] — useful because official
-     course descriptions don't reflect teaching style, exam difficulty, or workload." -->
-
 Horror Game Guides — Community Walkthroughs and Collectible References.
 
 This domain covers unofficial, community-authored walkthrough guides and collectible/trophy references for a curated set of horror video games. The knowledge collected is specifically the kind that does not appear in official game manuals: step-by-step puzzle solutions, exact item locations, enemy patrol patterns, survival strategy, alternate-path routing, and collectible coordinates described in player-friendly language.

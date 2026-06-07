@@ -1,10 +1,5 @@
 # Project 1 Planning: The Unofficial Guide
 
-> Write this document before you write any pipeline code.
-> Your spec and architecture diagram are what you'll use to direct AI tools (Claude, Copilot, etc.) to generate your implementation — the more specific they are, the more useful the generated code will be.
-> Update the Retrieval Approach and Chunking Strategy sections if you change your approach during implementation.
-> Update this file before starting any stretch features.
-
 ---
 
 ## Domain
@@ -35,8 +30,6 @@ Why is this valuable and hard to find through official channels?
 ---
 
 ## Documents
-
-> **Note:** Primary source URLs have been supplied. Remaining _URL pending_ rows are collectible sub-guides or DLC guides derived from the same community sources.
 
 | # | Source | Description | URL or location |
 |---|--------|-------------|-----------------|
