@@ -198,7 +198,7 @@ documents/
 │  GENERATION (generate.py)           │
 │  • Build prompt: system + context   │
 │  • Groq API: llama-3.3-70b          │
-│    (or mixtral-8x7b-32768)          │
+│    (or llama-3.1-8b-instant)        │
 │  • System prompt grounds model:     │
 │    "Answer ONLY from provided        │
 │     context. Cite game + source."   │

@@ -17,7 +17,7 @@ load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 DEFAULT_MODEL = "llama-3.3-70b-versatile"
-FALLBACK_MODEL = "mixtral-8x7b-32768"
+FALLBACK_MODEL = "llama-3.1-8b-instant"
 
 
 def generate_answer(query: str, retrieved_chunks: list[dict]) -> tuple[str, list[dict]]:
