@@ -21,3 +21,5 @@ chroma/
 
 # Local-only demo recording notes (not part of submission)
 DEMO_SCRIPT.md
+DEMO_SCRIPT.pdf
+export_pdf_email.py
