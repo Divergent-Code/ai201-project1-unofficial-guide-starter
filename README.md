@@ -215,15 +215,6 @@ Users can dynamically toggle between strategies in the sidebar dropdown. Compari
 - **Recursive Header-Based Chunks:** Retain strong chapter and section keywords, yielding lower distance metrics on game-specific structural queries (e.g., "Where is the safe puzzle in Chapter 3?").
 - **Fixed-Size Chunks:** Perform well on contiguous narrative explanations but are prone to returning unrelated context when a chunk starts mid-sentence or cuts off key terms at boundary markers.
 
-## Demo Video & Interface
-
-### Walkthrough Recording
-You can watch the full walk-through video demonstrating the system features, query retrieval, conversational memory, and evaluation cases:
-
-<video src="screenshots/Screen Recording 2026-06-09 154630.mp4" controls width="100%"></video>
-
----
-
 ## Chat Interface & Verification Screenshots
 
 We verified our conversational memory and dual-chunking selection using the **Fixed-Size Chunks** strategy on a multi-turn query about *Amnesia: The Dark Descent (2010)*:
