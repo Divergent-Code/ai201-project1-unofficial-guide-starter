@@ -20,7 +20,25 @@ DEFAULT_MODEL = "llama-3.3-70b-versatile"
 FALLBACK_MODEL = "llama-3.1-8b-instant"
 
 
-def reformulate_query(query: str, chat_history: list[dict]) -> str:
+_groq_client: Groq | None = None
+
+
+def get_groq_client() -> Groq:
+    """Get or create the cached Groq client instance.
+
+    Reuses the client across calls to avoid cold-start latency.
+    """
+    global _groq_client
+    if _groq_client is None:
+        if not GROQ_API_KEY:
+            raise ValueError(
+                "GROQ_API_KEY environment variable is not set. Please add it to your .env file."
+            )
+        _groq_client = Groq(api_key=GROQ_API_KEY)
+    return _groq_client
+
+
+def reformulate_query(query: str, chat_history: list[dict], client: Groq | None = None) -> str:
     """Rephrase user's follow-up question into a standalone query.
 
     Uses a fast LLM (`llama-3.1-8b-instant`) to rewrite contextual queries 
@@ -31,12 +49,21 @@ def reformulate_query(query: str, chat_history: list[dict]) -> str:
         query (str): The latest user message or query.
         chat_history (list[dict]): A list of dictionaries representing past chat turns, 
             where each dict contains 'role' and 'content' keys.
+        client (Groq, optional): Pre-instantiated Groq client. Defaults to None.
 
     Returns:
         str: The standalone query string to be used for retrieval.
     """
-    if not chat_history or not GROQ_API_KEY:
+    if not chat_history:
         return query
+
+    if client is None:
+        if not GROQ_API_KEY:
+            return query
+        try:
+            client = get_groq_client()
+        except ValueError:
+            return query
 
     # Format history for the model
     formatted_history = []
@@ -64,8 +91,6 @@ def reformulate_query(query: str, chat_history: list[dict]) -> str:
         f"Standalone Query:"
     )
     
-    client = Groq(api_key=GROQ_API_KEY)
-    
     try:
         completion = client.chat.completions.create(
             messages=[
@@ -91,6 +116,7 @@ def generate_answer(
     query: str,
     retrieved_chunks: list[dict],
     chat_history: list[dict] | None = None,
+    client: Groq | None = None,
 ) -> tuple[str, list[dict]]:
     """Generate an answer grounded strictly in the retrieved context passages.
 
@@ -103,6 +129,7 @@ def generate_answer(
         retrieved_chunks (list[dict]): List of retrieved chunk dictionaries.
         chat_history (list[dict], optional): List of conversation turn dicts. 
             Defaults to None.
+        client (Groq, optional): Pre-instantiated Groq client. Defaults to None.
 
     Raises:
         ValueError: If GROQ_API_KEY is not defined in the environment.
@@ -113,10 +140,8 @@ def generate_answer(
             - answer (str): The strictly grounded answer string.
             - sources (list[dict]): The list of retrieved chunks used as references.
     """
-    if not GROQ_API_KEY:
-        raise ValueError(
-            "GROQ_API_KEY environment variable is not set. Please add it to your .env file."
-        )
+    if client is None:
+        client = get_groq_client()
 
     # 1. Format the context passages
     if not retrieved_chunks:
@@ -167,9 +192,6 @@ def generate_answer(
     user_prompt = f"Context passages:\n{context_str}\n\nUser Question: {query}"
     messages.append({"role": "user", "content": user_prompt})
 
-    # 4. Call the Groq API
-    client = Groq(api_key=GROQ_API_KEY)
-    
     try:
         completion = client.chat.completions.create(
             messages=messages,

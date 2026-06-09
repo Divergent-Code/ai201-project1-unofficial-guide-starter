@@ -139,6 +139,141 @@ Each retrieved chunk is injected into the user-turn prompt as a numbered passage
 
 ---
 
+## Diagnostic Tests & Outputs
+
+### 1. Sample Chunks (Recursive Strategy)
+Below are 5 labeled sample chunks generated from `Amnesia_The_Dark_Descent_Complete_Walkthrough.md`. Notice how the section hierarchy is prepended to the `text` field.
+
+```json
+[Chunk 1]
+{
+  "text": "[Section: Amnesia: The Dark Descent (2010) Complete Walkthrough and Guide > Part 1: Introduction and Core Systems > A Brief Foreword]\n### A Brief Foreword\nAmnesia: The Dark Descent is a first-person survival horror game developed by Frictional Games. You play as Daniel, a young man who wakes on the floor of Brennenburg Castle with no memory of who he is, how he arrived, or what has happened to the castle around him. A note in his own handwriting tells him to descend to the inner sanctum and kill a man named Alexander. He does not know why.",
+  "game": "Amnesia: The Dark Descent (2010)",
+  "title": "Amnesia: The Dark Descent Complete Walkthrough and Guide (All Four Acts)",
+  "category": "Main Walkthrough",
+  "section_header": "Amnesia: The Dark Descent (2010) Complete Walkthrough and Guide > Part 1: Introduction and Core Systems > A Brief Foreword",
+  "source_file": "Amnesia_The_Dark_Descent_Complete_Walkthrough.md",
+  "chunk_index": 0
+}
+
+[Chunk 2]
+{
+  "text": "[Section: Amnesia: The Dark Descent (2010) Complete Walkthrough and Guide > Part 1: Introduction and Core Systems > A Brief Foreword]\n### A Brief Foreword\nthe castle around him. A note in his own handwriting tells him to descend to the inner sanctum and kill a man named Alexander. He does not know why.\n\nAs Daniel explores the castle, memory fragments return in the form of notes he wrote to himself \u2014 notes that reveal a story of obsession, cruelty, and a bargain with something ancient and terrible. The castle is not empty. Something hunts the corridors.",
+  "game": "Amnesia: The Dark Descent (2010)",
+  "title": "Amnesia: The Dark Descent Complete Walkthrough and Guide (All Four Acts)",
+  "category": "Main Walkthrough",
+  "section_header": "Amnesia: The Dark Descent (2010) Complete Walkthrough and Guide > Part 1: Introduction and Core Systems > A Brief Foreword",
+  "source_file": "Amnesia_The_Dark_Descent_Complete_Walkthrough.md",
+  "chunk_index": 1
+}
+
+[Chunk 3]
+{
+  "text": "[Section: Amnesia: The Dark Descent (2010) Complete Walkthrough and Guide > Part 1: Introduction and Core Systems > A Brief Foreword]\n### A Brief Foreword\nhat reveal a story of obsession, cruelty, and a bargain with something ancient and terrible. The castle is not empty. Something hunts the corridors.\n\nAmnesia: The Dark Descent does not give the player a weapon. There is no combat. The only options when a monster is encountered are to hide, run, or die. The game's design is built around dread, darkness, and the deliberate denial of safety.\n\n---",
+  "game": "Amnesia: The Dark Descent (2010)",
+  "title": "Amnesia: The Dark Descent Complete Walkthrough and Guide (All Four Acts)",
+  "category": "Main Walkthrough",
+  "section_header": "Amnesia: The Dark Descent (2010) Complete Walkthrough and Guide > Part 1: Introduction and Core Systems > A Brief Foreword",
+  "source_file": "Amnesia_The_Dark_Descent_Complete_Walkthrough.md",
+  "chunk_index": 2
+}
+
+[Chunk 4]
+{
+  "text": "[Section: Amnesia: The Dark Descent (2010) Complete Walkthrough and Guide > Part 1: Introduction and Core Systems > Controls (PC / PlayStation) > PC Controls]\n#### PC Controls\n* **W / A / S / D**: Move forward, left, backward, right\n* **Mouse Movement**: Look / aim\n* **Left Click**: Interact with objects, open doors, pick up items\n* **Right Click (Hold)**: Grab and hold objects (drag, push, pull)\n* **F**: Toggle lantern on/off\n* **Q**: Lean left\n* **E**: Lean right / interact with highlighted objects\n* **Space**: Jump\n* **Left Shift**: Sprint\n* **Tab**: Open inventory\n* **Escape**: Pause / main menu",
+  "game": "Amnesia: The Dark Descent (2010)",
+  "title": "Amnesia: The Dark Descent Complete Walkthrough and Guide (All Four Acts)",
+  "category": "Main Walkthrough",
+  "section_header": "Amnesia: The Dark Descent (2010) Complete Walkthrough and Guide > Part 1: Introduction and Core Systems > Controls (PC / PlayStation) > PC Controls",
+  "source_file": "Amnesia_The_Dark_Descent_Complete_Walkthrough.md",
+  "chunk_index": 3
+}
+
+[Chunk 5]
+{
+  "text": "[Section: Amnesia: The Dark Descent (2010) Complete Walkthrough and Guide > Part 1: Introduction and Core Systems > Controls (PC / PlayStation) > PlayStation Controls (Amnesia: Collection)]\n#### PlayStation Controls (Amnesia: Collection)\n* **Left Stick**: Move\n* **Right Stick**: Look\n* **R2**: Interact / pick up\n* **L2 (Hold)**: Grab and hold objects\n* **Triangle**: Toggle lantern\n* **L1 / R1**: Lean left / lean right\n* **Cross**: Jump\n* **L3**: Sprint\n* **Touchpad**: Inventory\n\n---",
+  "game": "Amnesia: The Dark Descent (2010)",
+  "title": "Amnesia: The Dark Descent Complete Walkthrough and Guide (All Four Acts)",
+  "category": "Main Walkthrough",
+  "section_header": "Amnesia: The Dark Descent (2010) Complete Walkthrough and Guide > Part 1: Introduction and Core Systems > Controls (PC / PlayStation) > PlayStation Controls (Amnesia: Collection)",
+  "source_file": "Amnesia_The_Dark_Descent_Complete_Walkthrough.md",
+  "chunk_index": 4
+}
+```
+
+### 2. Standalone Retrieval Test
+Demonstrating hybrid retrieval (RRF) on a specific query.
+
+**Query:** 'What happens if Daniel's sanity drops to zero?'
+
+- **Rank 1** [Distance: 0.4215]
+  - **Game:** Amnesia: The Dark Descent (2010)
+  - **Header:** Part 1: Introduction and Core Systems > Core Systems and Survival Tips > The Sanity System
+  - **Source:** Amnesia_The_Dark_Descent_Complete_Walkthrough.md (Index: 5)
+  - **Snippet:** `[Section: Amnesia: The Dark Descent (2010) Complete Walkthrough and Guide > Part 1: Introduction and Core Systems > Core Systems and Survival Tips > The Sanity System] #### The Sanity System Sanity is...`
+- **Rank 2** [Distance: 0.4682]
+  - **Game:** Amnesia: The Dark Descent (2010)
+  - **Header:** Part 1: Introduction and Core Systems > Core Systems and Survival Tips > The Sanity System
+  - **Source:** Amnesia_The_Dark_Descent_Complete_Walkthrough.md (Index: 6)
+- **Rank 3** [Distance: 0.5228]
+  - **Game:** Amnesia: The Dark Descent (2010)
+  - **Header:** Act IV: Orb Chamber > The Three Endings > Ending 2 — Agrippa's Ending (Secret Ending)
+  - **Source:** Amnesia_The_Dark_Descent_Complete_Walkthrough.md (Index: 149)
+- **Rank 4** [Distance: 0.4857]
+  - **Game:** Amnesia: The Dark Descent (2010)
+  - **Header:** Part 1: Introduction and Core Systems > Core Systems and Survival Tips > The Sanity System
+  - **Source:** Amnesia_The_Dark_Descent_Complete_Walkthrough.md (Index: 7)
+- **Rank 5** [Distance: 0.5457]
+  - **Game:** Amnesia: The Dark Descent (2010)
+  - **Header:** Act IV: Nave > Objective: Reach the Transept > The Nave Entry
+  - **Source:** Amnesia_The_Dark_Descent_Complete_Walkthrough.md (Index: 119)
+
+### 3. Grounded Responses
+These responses demonstrate LLM generation strictly bound by the provided context chunks.
+
+**Example 1: Specific Item Retrieval**
+- **Query:** 'Where is the Bloodstained Bracelet found in the Silent Hill 2 Remake, and what do you need to get it?'
+- **Answer:** The Bloodstained Bracelet is found in the area with the dive boards, specifically in between the dive boards, where there's an eye with a leakage. To get it, you need to break the eye to reveal the bracelet.
+- **Sources Cited:**
+  - Silent Hill 2 Remake Puzzles, Trophies, and Achievements Guide | Puzzle Solutions > Bracelet Puzzle (Silent_Hill_2_Remake_Puzzles_and_Trophies_Guide.md)
+  - Silent Hill 2 Remake Complete Walkthrough | Brookhaven Hospital (Silent_Hill_2_Remake_Complete_Walkthrough.md)
+
+**Example 2: Boss Fight Strategy**
+- **Query:** 'How do you defeat the Leviathan boss in Dead Space?'
+- **Answer:** To defeat the Leviathan boss in Dead Space, you need to go through three phases. 
+  1. **Phase 1 (Tentacles)**: Stand on the side walkways, dodge the Leviathan's sweeps, and shoot the yellow glowing spots on the base of each tentacle when they slam down.
+  2. **Phase 2 (Mouth)**: Shoot the exposed orange core inside its central mouth. When the Leviathan spits explosive balls at you, use Kinesis to catch the balls in mid-air and launch them back into the mouth.
+  3. **Phase 3 (Combined)**: The tentacles and mouth will attack simultaneously. Focus fire on the mouth core while staying on the move to avoid tentacle slams.
+- **Sources Cited:**
+  - Dead Space Complete Walkthrough (Chapters 1-12) | Chapter 6: Environmental Hazard > Objective: Kill the Leviathan > Third Boss Fight: The Leviathan (Dead_Space_Complete_Walkthrough.md)
+
+**Example 3: Out-of-Scope Refusal**
+- **Query:** 'Does SOMA have a walkthrough for finding the hidden weapon?'
+- **Answer:** I couldn't find that in the guides I have.
+- **Sources Cited:**
+  - SOMA Complete Walkthrough and Guide | SOMA Complete Walkthrough (SOMA_Complete_Walkthrough.md)
+  *(The system successfully refuses to hallucinate since no "hidden weapon" exists in the SOMA guide.)*
+
+### 4. Hybrid Search Comparison
+Comparison of the Top 3 results across Vector-only, BM25-only, and Hybrid (Reciprocal Rank Fusion) search strategies.
+
+| Query | Vector Only (Top 3) | BM25 Only (Top 3) | Hybrid (RRF) (Top 3) |
+|-------|---------------------|-------------------|----------------------|
+| **1. "What happens if Daniel's sanity drops to zero?"** | 1. The Sanity System<br>2. The Sanity System<br>3. Ending 3 — Damnation | 1. Ending 2 — Agrippa's Ending<br>2. The Sanity System<br>3. The Sanity System | 1. The Sanity System<br>2. The Sanity System<br>3. Ending 2 — Agrippa's Ending |
+| **2. "Bloodstained Bracelet in Brookhaven Hospital"** | 1. Brookhaven Hospital<br>2. Brookhaven Hospital<br>3. Brookhaven Hospital | 1. Bracelet Puzzle<br>2. Brookhaven Hospital<br>3. Brookhaven Hospital | 1. Brookhaven Hospital<br>2. Brookhaven Hospital<br>3. Bracelet Puzzle |
+| **3. "How do you defeat the Leviathan boss?"** | 1. Third Boss Fight: The Leviathan<br>2. Third Boss Fight: The Leviathan<br>3. Bosses and Special Encounters > Leviathan | 1. Third Boss Fight: The Leviathan<br>2. Third Boss Fight: The Leviathan<br>3. Fourth Boss Fight: The Slug | 1. Third Boss Fight: The Leviathan<br>2. Third Boss Fight: The Leviathan<br>3. Bosses and Special Encounters > Leviathan |
+
+### 5. Multi-turn Chat Transcript
+Demonstrates the query reformulation process where conversational context is injected into a standalone search query.
+
+- **Turn 1 Query:** 'Who is Daniel in Amnesia: The Dark Descent?'
+- **Turn 1 Answer:** According to Passage 1, Daniel is the protagonist of the game Amnesia: The Dark Descent, a young man who wakes up on the floor of Brennenburg Castle with no memory of who he is...
+- **Turn 2 Query:** 'What happens if his sanity drops to zero?'
+- **Turn 2 Reformulated Standalone Query:** 'What happens when Daniel's sanity reaches zero in Amnesia: The Dark Descent?'
+- **Turn 2 Answer:** The provided passages do not explicitly state what happens if Daniel's sanity drops to zero. They do describe the effects of sanity loss at different levels...
+
+---
+
 ## Evaluation Report
 
 | # | Question | Expected answer | System response (summarized) | Retrieval quality | Response accuracy |

@@ -110,67 +110,298 @@ class BM25Scorer:
 # Module-level singletons — loaded once on first call, reused thereafter.
 # Streamlit re-runs the script on every interaction; these persist across
 # reruns inside the same process via @st.cache_resource (in app.py).
-# ---------------------------------------------------------------------------
+class Retriever:
+    """Class wrapping ChromaDB RAG retrieval state and logic.
 
-_model: SentenceTransformer | None = None
-_collections: dict = {}      # collection_name -> Collection
-_game_caches: dict = {}      # collection_name -> list[str]
-_bm25_scorers: dict = {}     # collection_name -> BM25Scorer
-_all_chunks: dict = {}       # collection_name -> list[dict]
+    Encapsulates dependencies like the embedding model, ChromaDB persistent client,
+    BM25 indices, and collections to improve isolation and testability.
+    """
+    def __init__(self, model_name: str = EMBED_MODEL, chroma_dir: str = CHROMA_DIR):
+        self.model_name = model_name
+        self.chroma_dir = chroma_dir
+        self.model: SentenceTransformer | None = None
+        self.client = chromadb.PersistentClient(path=self.chroma_dir)
+        self.collections: dict = {}
+        self.game_caches: dict = {}
+        self.bm25_scorers: dict = {}
+        self.all_chunks: dict = {}
+
+    def load_resources(self, collection_name: str = "horror_guides_recursive") -> None:
+        """Load embedding model, ChromaDB collection, and BM25 index on demand.
+
+        Reuses loaded singletons to minimize cold-start latency across turns.
+
+        Args:
+            collection_name (str, optional): Name of the ChromaDB collection to load. 
+                Defaults to "horror_guides_recursive".
+
+        Raises:
+            RuntimeError: If the specified ChromaDB collection is not found.
+        """
+        if self.model is None:
+            self.model = SentenceTransformer(self.model_name)
+        if collection_name not in self.collections:
+            try:
+                self.collections[collection_name] = self.client.get_collection(collection_name)
+            except Exception as e:
+                raise RuntimeError(
+                    f"ChromaDB collection '{collection_name}' not found. "
+                    "Run 'python embed.py' first to build the index."
+                ) from e
+                
+        if collection_name not in self.bm25_scorers or collection_name not in self.all_chunks:
+            col = self.collections[collection_name]
+            # Fetch all chunks to build lexical index
+            all_data = col.get(include=["documents", "metadatas"])
+            chunks_list = []
+            doc_texts = []
+            if all_data and all_data.get("ids"):
+                for i in range(len(all_data["ids"])):
+                    chunk_id = all_data["ids"][i]
+                    doc = all_data["documents"][i]
+                    meta = all_data["metadatas"][i]
+                    chunks_list.append({
+                        "id": chunk_id,
+                        "text": doc,
+                        "metadata": meta,
+                        "bm25_index": i
+                    })
+                    doc_texts.append(doc)
+                
+                self.all_chunks[collection_name] = chunks_list
+                if doc_texts:
+                    self.bm25_scorers[collection_name] = BM25Scorer(doc_texts)
+
+    def retrieve(
+        self,
+        query: str,
+        game_filter: str | None = None,
+        top_k: int = 5,
+        collection_name: str = "horror_guides_recursive",
+    ) -> list[dict]:
+        """Retrieve the top-k most relevant chunks using hybrid semantic and lexical search.
+
+        Uplifts search by executing parallel vector (ChromaDB) and lexical (BM25) 
+        searches, and merges candidates using Reciprocal Rank Fusion (RRF) with a 
+        constant $k=60$.
+
+        Args:
+            query (str): The search query or question string.
+            game_filter (str, optional): The base game name to scope search. If a base 
+                game matches, it implicitly includes DLC variations via prefix matching.
+                Defaults to None (unfiltered).
+            top_k (int, optional): Number of results to return. Defaults to 5.
+            collection_name (str, optional): ChromaDB collection name to query. 
+                Defaults to "horror_guides_recursive".
+
+        Returns:
+            list[dict]: A list of up to top_k chunk dictionaries.
+        """
+        self.load_resources(collection_name)
+
+        bm25_scorer = self.bm25_scorers.get(collection_name)
+        all_chunks = self.all_chunks.get(collection_name)
+        collection = self.collections[collection_name]
+
+        if not bm25_scorer or not all_chunks:
+            # Fallback to pure vector search if lexical index is empty
+            return self._retrieve_vector_only(query, game_filter, top_k, collection_name)
+
+        # 1. Run Vector Search (get top 50 candidates matching filter)
+        query_embedding = self.model.encode([query], show_progress_bar=False).tolist()
+        where_clause = self._build_where_clause(game_filter, collection_name)
+
+        query_kwargs: dict = {
+            "query_embeddings": query_embedding,
+            "n_results": min(50, collection.count()),
+            "include": ["documents", "metadatas", "distances"],
+        }
+        if where_clause:
+            query_kwargs["where"] = where_clause
+
+        results = collection.query(**query_kwargs)
+        
+        docs = results["documents"][0] if results.get("documents") else []
+        metas = results["metadatas"][0] if results.get("metadatas") else []
+        dists = results["distances"][0] if results.get("distances") else []
+        ids = results["ids"][0] if results.get("ids") else []
+
+        vector_candidates = {}
+        for rank, (cid, doc, meta, dist) in enumerate(zip(ids, docs, metas, dists), 1):
+            vector_candidates[cid] = {
+                "rank": rank,
+                "doc": doc,
+                "meta": meta,
+                "distance": round(dist, 4)
+            }
+
+        # 2. Run BM25 Search (get top 50 candidates matching filter)
+        matching_games = None
+        if game_filter:
+            all_games = self._get_all_games(collection_name)
+            matching_games = [g for g in all_games if g.startswith(game_filter)]
+
+        filtered_chunks = all_chunks
+        if matching_games:
+            filtered_chunks = [c for c in all_chunks if c["metadata"].get("game") in matching_games]
+
+        query_terms = tokenize(query)
+        scored_chunks = []
+        for c in filtered_chunks:
+            score = bm25_scorer.score(query_terms, c["bm25_index"])
+            if score > 0:
+                scored_chunks.append((score, c))
+
+        # Sort descending by BM25 score
+        scored_chunks.sort(key=lambda x: x[0], reverse=True)
+
+        keyword_candidates = {}
+        for rank, (score, c) in enumerate(scored_chunks[:50], 1):
+            keyword_candidates[c["id"]] = {
+                "rank": rank,
+                "doc": c["text"],
+                "meta": c["metadata"]
+            }
+
+        # 3. Reciprocal Rank Fusion (RRF) with constant k=60
+        union_ids = set(vector_candidates.keys()).union(set(keyword_candidates.keys()))
+
+        rrf_scores = []
+        for cid in union_ids:
+            v_rank = vector_candidates[cid]["rank"] if cid in vector_candidates else None
+            k_rank = keyword_candidates[cid]["rank"] if cid in keyword_candidates else None
+
+            v_score = 1.0 / (60.0 + v_rank) if v_rank is not None else 0.0
+            k_score = 1.0 / (60.0 + k_rank) if k_rank is not None else 0.0
+            rrf_score = v_score + k_score
+
+            # Retrieve doc details
+            if cid in vector_candidates:
+                doc = vector_candidates[cid]["doc"]
+                meta = vector_candidates[cid]["meta"]
+                distance = vector_candidates[cid]["distance"]
+            else:
+                doc = keyword_candidates[cid]["doc"]
+                meta = keyword_candidates[cid]["meta"]
+                distance = 0.5  # placeholder for keyword-only retrieval
+
+            rrf_scores.append({
+                "rrf_score": rrf_score,
+                "id": cid,
+                "doc": doc,
+                "meta": meta,
+                "distance": distance
+            })
+
+        # Sort candidates by RRF score descending
+        rrf_scores.sort(key=lambda x: x["rrf_score"], reverse=True)
+
+        # 4. Form output
+        output = []
+        for item in rrf_scores[:top_k]:
+            meta = item["meta"]
+            output.append({
+                "text": item["doc"],
+                "game": meta.get("game", "Unknown"),
+                "title": meta.get("title", "Unknown"),
+                "category": meta.get("category", "Unknown"),
+                "section_header": meta.get("section_header", ""),
+                "source_file": meta.get("source_file", ""),
+                "chunk_index": int(meta.get("chunk_index", 0)),
+                "distance": item["distance"],
+            })
+
+        return output
+
+    def _retrieve_vector_only(
+        self,
+        query: str,
+        game_filter: str | None = None,
+        top_k: int = 5,
+        collection_name: str = "horror_guides_recursive",
+    ) -> list[dict]:
+        """Perform a pure vector-based search fallback in ChromaDB."""
+        query_embedding = self.model.encode([query], show_progress_bar=False).tolist()
+        where_clause = self._build_where_clause(game_filter, collection_name)
+        collection = self.collections[collection_name]
+        query_kwargs: dict = {
+            "query_embeddings": query_embedding,
+            "n_results": min(top_k, collection.count()),
+            "include": ["documents", "metadatas", "distances"],
+        }
+        if where_clause:
+            query_kwargs["where"] = where_clause
+        results = collection.query(**query_kwargs)
+        output: list[dict] = []
+        docs = results["documents"][0] if results.get("documents") else []
+        metas = results["metadatas"][0] if results.get("metadatas") else []
+        dists = results["distances"][0] if results.get("distances") else []
+        for doc, meta, dist in zip(docs, metas, dists):
+            output.append({
+                "text": doc,
+                "game": meta.get("game", "Unknown"),
+                "title": meta.get("title", "Unknown"),
+                "category": meta.get("category", "Unknown"),
+                "section_header": meta.get("section_header", ""),
+                "source_file": meta.get("source_file", ""),
+                "chunk_index": int(meta.get("chunk_index", 0)),
+                "distance": round(dist, 4),
+            })
+
+        return output
+
+    def list_games(self, collection_name: str = "horror_guides_recursive") -> list[str]:
+        """Return a sorted list of unique base game names in the collection."""
+        self.load_resources(collection_name)
+        all_games = self._get_all_games(collection_name)
+        base_names = sorted({g.split(" \u2014 ")[0] for g in all_games})
+        return base_names
+
+    def _get_all_games(self, collection_name: str = "horror_guides_recursive") -> list[str]:
+        """Retrieve all unique game names stored in ChromaDB metadata."""
+        if collection_name not in self.game_caches:
+            col = self.collections[collection_name]
+            result = col.get(
+                limit=col.count(),
+                include=["metadatas"],
+            )
+            self.game_caches[collection_name] = sorted({
+                m["game"] for m in result["metadatas"] if "game" in m
+            })
+        return self.game_caches[collection_name]
+
+    def _build_where_clause(self, game_filter: str | None, collection_name: str = "horror_guides_recursive") -> dict | None:
+        """Build a ChromaDB 'where' query filter dictionary for game scoping."""
+        if not game_filter:
+            return None
+
+        all_games = self._get_all_games(collection_name)
+        matching = [g for g in all_games if g.startswith(game_filter)]
+
+        if not matching:
+            print(f"[retrieve] Warning: no game matching '{game_filter}' found. Searching full corpus.")
+            return None
+        if len(matching) == 1:
+            return {"game": {"$eq": matching[0]}}
+        return {"game": {"$in": matching}}
+
+
+# Instantiate default retriever instance to maintain backward-compatible module functions
+_default_retriever = Retriever()
+
+# Backward compatible module-level variables pointing to the default instance state
+_model = None  # Will be assigned upon resource loading
+_collections = _default_retriever.collections
+_game_caches = _default_retriever.game_caches
+_bm25_scorers = _default_retriever.bm25_scorers
+_all_chunks = _default_retriever.all_chunks
 
 
 def _load_resources(collection_name: str = "horror_guides_recursive") -> None:
-    """Load embedding model, ChromaDB collection, and BM25 index on demand.
-
-    Reuses loaded singletons to minimize cold-start latency across turns.
-
-    Args:
-        collection_name (str, optional): Name of the ChromaDB collection to load. 
-            Defaults to "horror_guides_recursive".
-
-    Raises:
-        RuntimeError: If the specified ChromaDB collection is not found.
-    """
     global _model
-    if _model is None:
-        _model = SentenceTransformer(EMBED_MODEL)
-    if collection_name not in _collections:
-        client = chromadb.PersistentClient(path=CHROMA_DIR)
-        try:
-            _collections[collection_name] = client.get_collection(collection_name)
-        except Exception as e:
-            raise RuntimeError(
-                f"ChromaDB collection '{collection_name}' not found. "
-                "Run 'python embed.py' first to build the index."
-            ) from e
-            
-    if collection_name not in _bm25_scorers or collection_name not in _all_chunks:
-        col = _collections[collection_name]
-        # Fetch all chunks to build lexical index
-        all_data = col.get(include=["documents", "metadatas"])
-        chunks_list = []
-        doc_texts = []
-        if all_data and all_data.get("ids"):
-            for i in range(len(all_data["ids"])):
-                chunk_id = all_data["ids"][i]
-                doc = all_data["documents"][i]
-                meta = all_data["metadatas"][i]
-                chunks_list.append({
-                    "id": chunk_id,
-                    "text": doc,
-                    "metadata": meta,
-                    "bm25_index": i
-                })
-                doc_texts.append(doc)
-            
-            _all_chunks[collection_name] = chunks_list
-            if doc_texts:
-                _bm25_scorers[collection_name] = BM25Scorer(doc_texts)
+    _default_retriever.load_resources(collection_name)
+    _model = _default_retriever.model
 
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 def retrieve(
     query: str,
@@ -178,148 +409,7 @@ def retrieve(
     top_k: int = 5,
     collection_name: str = "horror_guides_recursive",
 ) -> list[dict]:
-    """Retrieve the top-k most relevant chunks using hybrid semantic and lexical search.
-
-    Uplifts search by executing parallel vector (ChromaDB) and lexical (BM25) 
-    searches, and merges candidates using Reciprocal Rank Fusion (RRF) with a 
-    constant $k=60$.
-
-    Args:
-        query (str): The search query or question string.
-        game_filter (str, optional): The base game name to scope search. If a base 
-            game matches, it implicitly includes DLC variations via prefix matching.
-            Defaults to None (unfiltered).
-        top_k (int, optional): Number of results to return. Defaults to 5.
-        collection_name (str, optional): ChromaDB collection name to query. 
-            Defaults to "horror_guides_recursive".
-
-    Returns:
-        list[dict]: A list of up to top_k chunk dictionaries, each containing:
-            - text (str): The full text of the chunk.
-            - game (str): The game name metadata.
-            - title (str): The guide document title.
-            - category (str): The category of the guide.
-            - section_header (str): The heading path breadcrumb.
-            - source_file (str): The source markdown file basename.
-            - chunk_index (int): The 0-based index of the chunk in the file.
-            - distance (float): Cosine distance (or 0.5 placeholder if retrieved 
-              exclusively by lexical search).
-    """
-    _load_resources(collection_name)
-
-    bm25_scorer = _bm25_scorers.get(collection_name)
-    all_chunks = _all_chunks.get(collection_name)
-    collection = _collections[collection_name]
-
-    if not bm25_scorer or not all_chunks:
-        # Fallback to pure vector search if lexical index is empty
-        return _retrieve_vector_only(query, game_filter, top_k, collection_name)
-
-    # 1. Run Vector Search (get top 50 candidates matching filter)
-    query_embedding = _model.encode([query], show_progress_bar=False).tolist()
-    where_clause = _build_where_clause(game_filter, collection_name)
-
-    query_kwargs: dict = {
-        "query_embeddings": query_embedding,
-        "n_results": min(50, collection.count()),
-        "include": ["documents", "metadatas", "distances"],
-    }
-    if where_clause:
-        query_kwargs["where"] = where_clause
-
-    results = collection.query(**query_kwargs)
-    
-    docs = results["documents"][0] if results.get("documents") else []
-    metas = results["metadatas"][0] if results.get("metadatas") else []
-    dists = results["distances"][0] if results.get("distances") else []
-    ids = results["ids"][0] if results.get("ids") else []
-
-    vector_candidates = {}
-    for rank, (cid, doc, meta, dist) in enumerate(zip(ids, docs, metas, dists), 1):
-        vector_candidates[cid] = {
-            "rank": rank,
-            "doc": doc,
-            "meta": meta,
-            "distance": round(dist, 4)
-        }
-
-    # 2. Run BM25 Search (get top 50 candidates matching filter)
-    matching_games = None
-    if game_filter:
-        all_games = _get_all_games(collection_name)
-        matching_games = [g for g in all_games if g.startswith(game_filter)]
-
-    filtered_chunks = all_chunks
-    if matching_games:
-        filtered_chunks = [c for c in all_chunks if c["metadata"].get("game") in matching_games]
-
-    query_terms = tokenize(query)
-    scored_chunks = []
-    for c in filtered_chunks:
-        score = bm25_scorer.score(query_terms, c["bm25_index"])
-        if score > 0:
-            scored_chunks.append((score, c))
-
-    # Sort descending by BM25 score
-    scored_chunks.sort(key=lambda x: x[0], reverse=True)
-
-    keyword_candidates = {}
-    for rank, (score, c) in enumerate(scored_chunks[:50], 1):
-        keyword_candidates[c["id"]] = {
-            "rank": rank,
-            "doc": c["text"],
-            "meta": c["metadata"]
-        }
-
-    # 3. Reciprocal Rank Fusion (RRF) with constant k=60
-    union_ids = set(vector_candidates.keys()).union(set(keyword_candidates.keys()))
-
-    rrf_scores = []
-    for cid in union_ids:
-        v_rank = vector_candidates[cid]["rank"] if cid in vector_candidates else None
-        k_rank = keyword_candidates[cid]["rank"] if cid in keyword_candidates else None
-
-        v_score = 1.0 / (60.0 + v_rank) if v_rank is not None else 0.0
-        k_score = 1.0 / (60.0 + k_rank) if k_rank is not None else 0.0
-        rrf_score = v_score + k_score
-
-        # Retrieve doc details
-        if cid in vector_candidates:
-            doc = vector_candidates[cid]["doc"]
-            meta = vector_candidates[cid]["meta"]
-            distance = vector_candidates[cid]["distance"]
-        else:
-            doc = keyword_candidates[cid]["doc"]
-            meta = keyword_candidates[cid]["meta"]
-            distance = 0.5  # placeholder for keyword-only retrieval
-
-        rrf_scores.append({
-            "rrf_score": rrf_score,
-            "id": cid,
-            "doc": doc,
-            "meta": meta,
-            "distance": distance
-        })
-
-    # Sort candidates by RRF score descending
-    rrf_scores.sort(key=lambda x: x["rrf_score"], reverse=True)
-
-    # 4. Form output
-    output = []
-    for item in rrf_scores[:top_k]:
-        meta = item["meta"]
-        output.append({
-            "text": item["doc"],
-            "game": meta.get("game", "Unknown"),
-            "title": meta.get("title", "Unknown"),
-            "category": meta.get("category", "Unknown"),
-            "section_header": meta.get("section_header", ""),
-            "source_file": meta.get("source_file", ""),
-            "chunk_index": int(meta.get("chunk_index", 0)),
-            "distance": item["distance"],
-        })
-
-    return output
+    return _default_retriever.retrieve(query, game_filter, top_k, collection_name)
 
 
 def _retrieve_vector_only(
@@ -328,125 +418,11 @@ def _retrieve_vector_only(
     top_k: int = 5,
     collection_name: str = "horror_guides_recursive",
 ) -> list[dict]:
-    """Perform a pure vector-based search fallback in ChromaDB.
-
-    Used when the lexical BM25 index is empty or unavailable.
-
-    Args:
-        query (str): The search query string.
-        game_filter (str, optional): The base game name to filter results.
-        top_k (int, optional): The number of chunks to retrieve. Defaults to 5.
-        collection_name (str, optional): Name of the ChromaDB collection. 
-            Defaults to "horror_guides_recursive".
-
-    Returns:
-        list[dict]: List of chunk dictionaries containing standard keys.
-    """
-    query_embedding = _model.encode([query], show_progress_bar=False).tolist()
-    where_clause = _build_where_clause(game_filter, collection_name)
-    collection = _collections[collection_name]
-    query_kwargs: dict = {
-        "query_embeddings": query_embedding,
-        "n_results": min(top_k, collection.count()),
-        "include": ["documents", "metadatas", "distances"],
-    }
-    if where_clause:
-        query_kwargs["where"] = where_clause
-    results = collection.query(**query_kwargs)
-    output: list[dict] = []
-    docs = results["documents"][0] if results.get("documents") else []
-    metas = results["metadatas"][0] if results.get("metadatas") else []
-    dists = results["distances"][0] if results.get("distances") else []
-    for doc, meta, dist in zip(docs, metas, dists):
-        output.append({
-            "text": doc,
-            "game": meta.get("game", "Unknown"),
-            "title": meta.get("title", "Unknown"),
-            "category": meta.get("category", "Unknown"),
-            "section_header": meta.get("section_header", ""),
-            "source_file": meta.get("source_file", ""),
-            "chunk_index": int(meta.get("chunk_index", 0)),
-            "distance": round(dist, 4),
-        })
-
-    return output
+    return _default_retriever._retrieve_vector_only(query, game_filter, top_k, collection_name)
 
 
 def list_games(collection_name: str = "horror_guides_recursive") -> list[str]:
-    """Return a sorted list of unique base game names in the collection.
-
-    DLC variants (indicated by a " — " suffix) are normalized to their parent 
-    game name so they map to a single unified console entry (e.g., "Alan Wake II (2023)").
-
-    Args:
-        collection_name (str, optional): Name of the ChromaDB collection to inspect. 
-            Defaults to "horror_guides_recursive".
-
-    Returns:
-        list[str]: Sorted list of unique base game names.
-    """
-    _load_resources(collection_name)
-    all_games = _get_all_games(collection_name)
-    # Strip DLC suffixes (anything after " — ") to get base game names
-    base_names = sorted({g.split(" \u2014 ")[0] for g in all_games})
-    return base_names
-
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-def _get_all_games(collection_name: str = "horror_guides_recursive") -> list[str]:
-    """Retrieve all unique game names stored in ChromaDB metadata.
-
-    Caches the results locally to avoid redundant database reads.
-
-    Args:
-        collection_name (str, optional): Name of the collection. Defaults to 
-            "horror_guides_recursive".
-
-    Returns:
-        list[str]: A sorted list of unique game strings.
-    """
-    if collection_name not in _game_caches:
-        col = _collections[collection_name]
-        result = col.get(
-            limit=col.count(),
-            include=["metadatas"],
-        )
-        _game_caches[collection_name] = sorted({
-            m["game"] for m in result["metadatas"] if "game" in m
-        })
-    return _game_caches[collection_name]
-
-
-def _build_where_clause(game_filter: str | None, collection_name: str = "horror_guides_recursive") -> dict | None:
-    """Build a ChromaDB 'where' query filter dictionary for game scoping.
-
-    Automatically resolves parent base games to also match their DLC expansion 
-    prefixes in the metadata (using '$in' or '$eq' clauses).
-
-    Args:
-        game_filter (str | None): Base game name, or None if unfiltered.
-        collection_name (str, optional): Collection name. Defaults to 
-            "horror_guides_recursive".
-
-    Returns:
-        dict | None: The ChromaDB compliant 'where' dictionary clause, or None.
-    """
-    if not game_filter:
-        return None
-
-    all_games = _get_all_games(collection_name)
-    matching = [g for g in all_games if g.startswith(game_filter)]
-
-    if not matching:
-        print(f"[retrieve] Warning: no game matching '{game_filter}' found. Searching full corpus.")
-        return None
-    if len(matching) == 1:
-        return {"game": {"$eq": matching[0]}}
-    # Multiple variants (e.g. base game + DLC) — use $in
-    return {"game": {"$in": matching}}
+    return _default_retriever.list_games(collection_name)
 
 
 # ---------------------------------------------------------------------------

@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from ingest import chunk_document, load_metadata
-from retrieve import retrieve, _retrieve_vector_only, tokenize, _collections, _bm25_scorers, _all_chunks, _load_resources
+from retrieve import retrieve, _retrieve_vector_only, tokenize, _collections, _bm25_scorers, _all_chunks, _load_resources, _default_retriever
 from generate import generate_answer, reformulate_query
 
 def get_5_sample_chunks():
@@ -89,8 +89,7 @@ def run_hybrid_comparison():
         query_terms = tokenize(query)
         matching_games = None
         if game_filter:
-            from retrieve import _get_all_games
-            all_games = _get_all_games(collection_name)
+            all_games = _default_retriever._get_all_games(collection_name)
             matching_games = [g for g in all_games if g.startswith(game_filter)]
         
         filtered = all_chunks

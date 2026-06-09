@@ -45,6 +45,52 @@ def initialize_backend(collection_name: str) -> bool:
         return False
 
 
+def run_rag_pipeline(
+    query: str,
+    chat_history: list[dict],
+    game_filter: str | None,
+    collection_name: str,
+) -> dict:
+    """Run the core RAG pipeline: reformulate, retrieve, and generate.
+
+    Args:
+        query (str): The raw user query.
+        chat_history (list[dict]): A list of past chat turn dictionaries.
+        game_filter (str | None): Optional game name prefix filter.
+        collection_name (str): Collection name to query.
+
+    Returns:
+        dict: A dictionary containing the RAG pipeline outputs:
+            - standalone_query (str): The reformulated query.
+            - answer (str): The grounded answer string.
+            - sources (list[dict]): The chunks cited.
+            - raw_chunks (list[dict]): Raw retrieved chunks.
+    """
+    from generate import reformulate_query, generate_answer
+    from retrieve import retrieve
+
+    # 1. Contextual Query Reformulation
+    standalone_q = reformulate_query(query, chat_history)
+
+    # 2. Retrieve chunks based on standalone query
+    chunks = retrieve(
+        standalone_q,
+        game_filter=game_filter,
+        top_k=5,
+        collection_name=collection_name
+    )
+
+    # 3. Generate Grounded Answer (incorporating original query, chunks, and history)
+    answer, sources = generate_answer(query, chunks, chat_history)
+
+    return {
+        "standalone_query": standalone_q,
+        "answer": answer,
+        "sources": sources,
+        "raw_chunks": chunks,
+    }
+
+
 # 2. Inject premium custom CSS for survival horror aesthetic
 st.markdown(
     """
@@ -335,7 +381,6 @@ for msg in st.session_state.messages:
                             st.code(chunk["text"], language="markdown")
                             st.markdown("---")
 
-# Handle new user message
 if query := st.chat_input("Enter your survival guide question...", key="chat_input"):
     # Render user query bubble
     with st.chat_message("user"):
@@ -350,44 +395,41 @@ if query := st.chat_input("Enter your survival guide question...", key="chat_inp
         else:
             with st.spinner("Accessing archive files..."):
                 try:
-                    # 1. Contextual Query Reformulation
-                    from generate import reformulate_query
-                    standalone_q = reformulate_query(query, chat_turns)
-                    
-                    # 2. Determine game filter
                     game_filter = None if selected_game == "All Games" else selected_game
                     
-                    # 3. Retrieve chunks based on standalone query
-                    chunks = retrieve(
-                        standalone_q,
+                    # Run RAG Pipeline using the helper function (separation of concerns)
+                    result = run_rag_pipeline(
+                        query=query,
+                        chat_history=chat_turns,
                         game_filter=game_filter,
-                        top_k=5,
                         collection_name=collection_name
                     )
                     
-                    # 4. Generate Grounded Answer (incorporating original query, chunks, and history)
-                    answer, sources = generate_answer(query, chunks, chat_turns)
+                    answer = result["answer"]
+                    sources = result["sources"]
+                    standalone_q = result["standalone_query"]
+                    chunks = result["raw_chunks"]
                     
-                    # 5. Render generated answer
+                    # Render generated answer
                     st.markdown(f'<div class="chat-bubble-assistant">{answer}</div>', unsafe_allow_html=True)
                     
-                    # 6. Render sources list
+                    # Render sources list
                     if sources:
                         with st.expander("Sources Cited"):
                             grouped_sources = {}
                             for src in sources:
                                 g = src.get("game", "Unknown Game")
                                 if g not in grouped_sources:
-                                    grouped_sources[g] = []
+                                     grouped_sources[g] = []
                                 doc_key = (src.get("title"), src.get("section_header"))
                                 if doc_key not in [(s.get("title"), s.get("section_header")) for s in grouped_sources[g]]:
-                                    grouped_sources[g].append(src)
+                                     grouped_sources[g].append(src)
                             
                             for game_title, game_srcs in grouped_sources.items():
                                 st.markdown(f"**{game_title}**")
                                 for s in game_srcs:
                                     st.markdown(
-                                        f"- *{s.get('title', 'Guide')}* — **{s.get('section_header', 'Main')}** `[{s.get('source_file', '')}]`"
+                                         f"- *{s.get('title', 'Guide')}* — **{s.get('section_header', 'Main')}** `[{s.get('source_file', '')}]`"
                                     )
                         
                         # Render query reformulation caption
@@ -405,7 +447,7 @@ if query := st.chat_input("Enter your survival guide question...", key="chat_inp
                                 st.code(chunk["text"], language="markdown")
                                 st.markdown("---")
                                 
-                    # 7. Append queries and responses to session state messages
+                    # Append queries and responses to session state messages
                     st.session_state.messages.append({
                         "role": "user",
                         "content": query,
