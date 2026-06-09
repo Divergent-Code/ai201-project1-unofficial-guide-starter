@@ -24,10 +24,17 @@ from generate import generate_answer
 
 # 1. Warm up/Cache the RAG backend resources by collection
 @st.cache_resource
-def initialize_backend(collection_name: str):
-    """
-    Ensure the retriever's models and databases are initialized once
-    and cached across page updates.
+def initialize_backend(collection_name: str) -> bool:
+    """Ensure retriever models and database files are loaded and cached.
+
+    Loads the database on demand using `@st.cache_resource` to avoid cold-start 
+    latency on page refreshes.
+
+    Args:
+        collection_name (str): The name of the ChromaDB collection to initialize.
+
+    Returns:
+        bool: True if initialization was successful, False otherwise.
     """
     from retrieve import _load_resources
     try:

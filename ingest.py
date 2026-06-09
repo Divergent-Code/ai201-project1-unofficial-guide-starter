@@ -39,15 +39,21 @@ HEADING_PATTERN = re.compile(r'^(#{1,4})\s+(.+)$', re.MULTILINE)
 # ---------------------------------------------------------------------------
 
 def load_metadata(md_path: Path) -> dict:
-    """
-    Load the .json sidecar for a given .md file.
-    Falls back to a minimal metadata dict if no sidecar exists.
+    """Load the .json sidecar metadata for a given .md file.
+
+    If no sidecar JSON file exists, falls back to a minimal metadata dictionary
+    deriving the title from the file stem.
 
     Args:
-        md_path: Path to the .md document.
+        md_path (Path): Path to the source .md document.
 
     Returns:
-        dict with keys: title, associated_game, category, tags, author
+        dict: A dictionary containing the following keys:
+            - title (str): The document title.
+            - game (str): The associated game name.
+            - category (str): The guide category.
+            - author (str): The author name.
+            - tags (list[str]): List of tags associated with the guide.
     """
     json_path = md_path.with_suffix('.json')
     if json_path.exists():
@@ -77,18 +83,19 @@ def load_metadata(md_path: Path) -> dict:
 # ---------------------------------------------------------------------------
 
 def _hard_split(text: str, header: str) -> list[str]:
-    """
-    Last-resort character-level split for chunks that still exceed CHUNK_HARD_CAP
-    after paragraph splitting (e.g. Darkwood table blocks with no blank lines).
-    Splits at the nearest line break (\n) or sentence boundary ('. ') or falls back 
-    to raw character position. Re-prepends the heading to each piece.
+    """Last-resort character-level split for chunks exceeding CHUNK_HARD_CAP.
+
+    Used when a chunk is still too large after paragraph-based splitting (e.g., 
+    large tables or continuous paragraphs). Attempts to find a line break (\\n) 
+    or sentence boundary ('. ') to split on. Re-prepends the heading to 
+    each split continuation piece to maintain contextual breadcrumbs.
 
     Args:
-        text:   The oversized chunk text (heading already included as first line).
-        header: The heading to prepend on continuation pieces.
+        text (str): The oversized chunk text (already has the header prepended).
+        header (str): The header string to prepend to continuation pieces.
 
     Returns:
-        List of sub-chunk strings all under CHUNK_HARD_CAP.
+        list[str]: A list of sub-chunk strings, each conforming to CHUNK_HARD_CAP.
     """
     if len(text) <= CHUNK_HARD_CAP:
         return [text]
@@ -123,18 +130,19 @@ def _hard_split(text: str, header: str) -> list[str]:
 
 
 def _split_by_paragraphs(text: str, header: str) -> list[str]:
-    """
-    Split a block of text at paragraph boundaries (double newlines).
-    Re-prepend the originating heading to every sub-chunk so no chunk
-    loses its semantic label. Strips any leading repeated heading line
-    from the body to prevent double-heading artifacts.
+    """Split a section of text at paragraph boundaries (double newlines).
+
+    Applies sliding window overlap logic to sub-chunks. Re-prepends the heading 
+    structure to every sub-chunk to ensure they preserve semantic mapping. 
+    Strips any leading repeated heading line from the body to avoid duplicate 
+    heading entries.
 
     Args:
-        text:   The text content of a single section (heading already stripped).
-        header: The ### or #### heading string to prepend to each sub-chunk.
+        text (str): The body text of the section (heading text already stripped).
+        header (str): The full breadcrumb heading prefix to prepend to each sub-chunk.
 
     Returns:
-        List of sub-chunk strings, each starting with the heading.
+        list[str]: A list of sub-chunk strings, each beginning with the header.
     """
     # Strip leading repeated heading line (causes double-heading artifacts)
     first_line = text.split('\n')[0].strip()
@@ -168,13 +176,21 @@ def _split_by_paragraphs(text: str, header: str) -> list[str]:
 
 
 def _extract_sections(md_text: str) -> list[tuple[str, str, int, str]]:
-    """
-    Parse a Markdown document and extract sections keyed on ### and #### headings.
-    Sections under ## or # headings without a ### child are also captured.
-    Also returns the active heading hierarchy path (breadcrumb) leading to the section.
+    """Parse a Markdown document and extract sections by heading levels.
+
+    Identifies ### and #### headings as section boundaries. Captures sections 
+    under # or ## headings if they do not contain ### or #### sub-headings. 
+    Maintains an active hierarchy stack to yield breadcrumbs (e.g. "Chapter 1 > Room 2").
+
+    Args:
+        md_text (str): The raw text content of the Markdown document.
 
     Returns:
-        List of (heading_text, section_body, heading_level, heading_path) tuples in document order.
+        list[tuple[str, str, int, str]]: A list of tuples containing:
+            - heading_text (str): The full heading line text.
+            - section_body (str): The body content under the heading.
+            - heading_level (int): The heading level (number of '#' characters).
+            - heading_path (str): The breadcrumb string representing the hierarchy.
     """
     sections = []
     lines = md_text.split('\n')
@@ -220,23 +236,28 @@ def _extract_sections(md_text: str) -> list[tuple[str, str, int, str]]:
 
 
 def chunk_document(md_path: Path, metadata: dict) -> list[dict]:
-    """
-    Recursively chunk a single Markdown document.
+    """Recursively chunk a single Markdown document using heading hierarchy.
 
-    Strategy (in order):
-      1. Split at ### and #### heading boundaries.
-      2. For sections within CHUNK_TARGET: emit as a single chunk.
-      3. For sections below MIN_CHUNK_SIZE: merge with next section.
-      4. For sections exceeding CHUNK_TARGET: split at paragraph breaks,
-         re-prepending the heading path + heading to every sub-chunk.
+    Applies the recursive heading-based chunking strategy:
+      1. Splits at ### and #### heading levels.
+      2. Emits sections falling within CHUNK_TARGET.
+      3. Merges tiny sections (under MIN_CHUNK_SIZE) with subsequent sections.
+      4. Splits large sections by paragraph and character boundaries, prepending
+         the heading path and heading to preserve location mapping in search indices.
 
     Args:
-        md_path:  Path to the .md file.
-        metadata: Sidecar metadata dict from load_metadata().
+        md_path (Path): Path to the source .md file.
+        metadata (dict): Metadata dictionary returned by load_metadata().
 
     Returns:
-        List of chunk dicts with keys: text, game, title, category,
-        section_header, source_file, chunk_index.
+        list[dict]: A list of chunk dictionaries, each containing:
+            - text (str): The body text of the chunk (with heading path prepended).
+            - game (str): The associated game name.
+            - title (str): The document title.
+            - category (str): The guide category.
+            - section_header (str): The hierarchy path breadcrumb.
+            - source_file (str): The basename of the markdown file.
+            - chunk_index (int): The 0-based chunk index within the document.
     """
     with open(md_path, 'r', encoding='utf-8') as f:
         md_text = f.read()
@@ -307,18 +328,20 @@ def chunk_document_fixed(
     chunk_size: int = 800,
     overlap: int = 150,
 ) -> list[dict]:
-    """
-    Chunk a single document using a fixed-size sliding character window.
-    Prepends document metadata tags so it has basic game/doc context.
+    """Chunk a single document using a fixed-size character sliding window.
+
+    Prepends document title information to every chunk for context and adjusts 
+    boundaries to avoid splitting words or sentences when possible.
 
     Args:
-        md_path:  Path to the .md file.
-        metadata: Sidecar metadata dict from load_metadata().
-        chunk_size: Target size of each chunk in characters.
-        overlap: Character overlap between consecutive chunks.
+        md_path (Path): Path to the source .md file.
+        metadata (dict): Metadata dictionary returned by load_metadata().
+        chunk_size (int, optional): Target character size of each chunk. Defaults to 800.
+        overlap (int, optional): Character overlap between consecutive chunks. Defaults to 150.
 
     Returns:
-        List of chunk dicts.
+        list[dict]: A list of chunk dictionaries containing standard keys (text, 
+        game, title, category, section_header, source_file, chunk_index).
     """
     with open(md_path, 'r', encoding='utf-8') as f:
         text = f.read()
@@ -380,18 +403,18 @@ def chunk_document_fixed(
 # ---------------------------------------------------------------------------
 
 def chunk_all_documents(docs_dir: str | Path, strategy: str = "recursive") -> list[dict]:
-    """
-    Ingest and chunk all .md documents in a directory.
+    """Ingest and chunk all Markdown documents within a directory.
 
-    Expects each .md file to have a matching .json sidecar. Falls back to
-    minimal metadata if the sidecar is missing.
+    Loads the sidecar metadata for each file and processes them according to the 
+    specified chunking strategy.
 
     Args:
-        docs_dir: Path to the documents directory.
-        strategy: 'recursive' for header-based chunking, 'fixed' for character sliding window.
+        docs_dir (str | Path): Path to the documents directory containing .md files.
+        strategy (str, optional): The chunking strategy. Choose 'recursive' (default) 
+            or 'fixed'.
 
     Returns:
-        Flat list of all chunk dicts across all documents.
+        list[dict]: A flat list of chunk dictionaries across all ingested documents.
     """
     docs_dir = Path(docs_dir)
     md_files = sorted(docs_dir.glob('*.md'))

@@ -34,13 +34,31 @@ CHROMA_DIR = str(Path(__file__).parent / "chroma_db")
 # ---------------------------------------------------------------------------
 
 def tokenize(text: str) -> list[str]:
-    """Tokenize text by converting to lowercase and extracting words."""
+    """Tokenize text by converting to lowercase and extracting alphanumeric words.
+
+    Args:
+        text (str): The raw text string to tokenize.
+
+    Returns:
+        list[str]: A list of lowercase word tokens.
+    """
     return re.findall(r"\w+", text.lower())
 
 
 class BM25Scorer:
-    """Pure-Python BM25 scorer for tf-idf style document search."""
+    """Pure-Python Okapi BM25 scorer for tf-idf style lexical document search.
+
+    Implements term frequency normalization, document length normalization, 
+    and inverse document frequency (IDF) weighting.
+    """
     def __init__(self, documents: list[str], k1: float = 1.5, b: float = 0.75):
+        """Initialize the BM25 scorer.
+
+        Args:
+            documents (list[str]): List of raw document chunk strings to index.
+            k1 (float, optional): Term frequency saturation parameter. Defaults to 1.5.
+            b (float, optional): Document length normalization parameter. Defaults to 0.75.
+        """
         self.k1 = k1
         self.b = b
         self.N = len(documents)
@@ -60,6 +78,15 @@ class BM25Scorer:
             self.idfs[term] = math.log(1 + (self.N - df + 0.5) / (df + 0.5))
 
     def score(self, query_terms: list[str], doc_idx: int) -> float:
+        """Calculate the BM25 score of query terms against a document.
+
+        Args:
+            query_terms (list[str]): Tokenized terms from the search query.
+            doc_idx (int): The 0-based document index in the corpus.
+
+        Returns:
+            float: The computed BM25 score.
+        """
         tf_counter = self.doc_term_freqs[doc_idx]
         doc_len = self.doc_lens[doc_idx]
         score = 0.0
@@ -93,9 +120,16 @@ _all_chunks: dict = {}       # collection_name -> list[dict]
 
 
 def _load_resources(collection_name: str = "horror_guides_recursive") -> None:
-    """
-    Load the embedding model, ChromaDB collection, BM25 Scorer, and chunks list if not already loaded.
-    Raises RuntimeError if the collection doesn't exist (embed.py not yet run).
+    """Load embedding model, ChromaDB collection, and BM25 index on demand.
+
+    Reuses loaded singletons to minimize cold-start latency across turns.
+
+    Args:
+        collection_name (str, optional): Name of the ChromaDB collection to load. 
+            Defaults to "horror_guides_recursive".
+
+    Raises:
+        RuntimeError: If the specified ChromaDB collection is not found.
     """
     global _model
     if _model is None:
@@ -144,34 +178,32 @@ def retrieve(
     top_k: int = 5,
     collection_name: str = "horror_guides_recursive",
 ) -> list[dict]:
-    """
-    Retrieve the top-k most relevant chunks for a given query using a hybrid
-    vector (semantic) and BM25 (lexical) search merged with Reciprocal Rank Fusion (RRF).
+    """Retrieve the top-k most relevant chunks using hybrid semantic and lexical search.
 
-    Game filter logic:
-        - If game_filter is None → search the full corpus (all 21 documents).
-        - If game_filter is a base game name (e.g. "Alan Wake II (2023)") →
-          also match DLC variants (e.g. "Alan Wake II (2023) — DLC Expansions")
-          via prefix matching, so the user never has to think about DLC splits.
-        - If no game in the collection starts with game_filter → falls back to
-          unfiltered search and logs a warning (graceful degradation).
+    Uplifts search by executing parallel vector (ChromaDB) and lexical (BM25) 
+    searches, and merges candidates using Reciprocal Rank Fusion (RRF) with a 
+    constant $k=60$.
 
     Args:
-        query:           The user's question string.
-        game_filter:     Optional base game name to restrict retrieval.
-        top_k:           Number of results to return (default: 5).
-        collection_name: Name of the ChromaDB collection to retrieve from.
+        query (str): The search query or question string.
+        game_filter (str, optional): The base game name to scope search. If a base 
+            game matches, it implicitly includes DLC variations via prefix matching.
+            Defaults to None (unfiltered).
+        top_k (int, optional): Number of results to return. Defaults to 5.
+        collection_name (str, optional): ChromaDB collection name to query. 
+            Defaults to "horror_guides_recursive".
 
     Returns:
-        List of result dicts ordered by RRF relevance (most relevant first):
-            text           : str   — full chunk text
-            game           : str   — game name from metadata
-            title          : str   — document title
-            category       : str   — guide category (e.g. "Main Walkthrough")
-            section_header : str   — heading that owns this chunk
-            source_file    : str   — source .md filename
-            chunk_index    : int   — chunk position within the source file
-            distance       : float — cosine distance (0 = identical, 2 = opposite) or placeholder
+        list[dict]: A list of up to top_k chunk dictionaries, each containing:
+            - text (str): The full text of the chunk.
+            - game (str): The game name metadata.
+            - title (str): The guide document title.
+            - category (str): The category of the guide.
+            - section_header (str): The heading path breadcrumb.
+            - source_file (str): The source markdown file basename.
+            - chunk_index (int): The 0-based index of the chunk in the file.
+            - distance (float): Cosine distance (or 0.5 placeholder if retrieved 
+              exclusively by lexical search).
     """
     _load_resources(collection_name)
 
@@ -296,7 +328,20 @@ def _retrieve_vector_only(
     top_k: int = 5,
     collection_name: str = "horror_guides_recursive",
 ) -> list[dict]:
-    """Fallback vector-only retrieval function."""
+    """Perform a pure vector-based search fallback in ChromaDB.
+
+    Used when the lexical BM25 index is empty or unavailable.
+
+    Args:
+        query (str): The search query string.
+        game_filter (str, optional): The base game name to filter results.
+        top_k (int, optional): The number of chunks to retrieve. Defaults to 5.
+        collection_name (str, optional): Name of the ChromaDB collection. 
+            Defaults to "horror_guides_recursive".
+
+    Returns:
+        list[dict]: List of chunk dictionaries containing standard keys.
+    """
     query_embedding = _model.encode([query], show_progress_bar=False).tolist()
     where_clause = _build_where_clause(game_filter, collection_name)
     collection = _collections[collection_name]
@@ -328,15 +373,17 @@ def _retrieve_vector_only(
 
 
 def list_games(collection_name: str = "horror_guides_recursive") -> list[str]:
-    """
-    Return a sorted list of base game names in the collection.
+    """Return a sorted list of unique base game names in the collection.
 
-    DLC variants are merged into their parent game name so the dropdown
-    in app.py shows one entry per franchise (e.g. "Alan Wake II (2023)"
-    covers both the base game and DLC chunks).
+    DLC variants (indicated by a " — " suffix) are normalized to their parent 
+    game name so they map to a single unified console entry (e.g., "Alan Wake II (2023)").
+
+    Args:
+        collection_name (str, optional): Name of the ChromaDB collection to inspect. 
+            Defaults to "horror_guides_recursive".
 
     Returns:
-        Sorted list of base game name strings.
+        list[str]: Sorted list of unique base game names.
     """
     _load_resources(collection_name)
     all_games = _get_all_games(collection_name)
@@ -350,9 +397,16 @@ def list_games(collection_name: str = "horror_guides_recursive") -> list[str]:
 # ---------------------------------------------------------------------------
 
 def _get_all_games(collection_name: str = "horror_guides_recursive") -> list[str]:
-    """
-    Return all unique game name values stored in ChromaDB metadata.
-    Result is cached in game_caches after first call.
+    """Retrieve all unique game names stored in ChromaDB metadata.
+
+    Caches the results locally to avoid redundant database reads.
+
+    Args:
+        collection_name (str, optional): Name of the collection. Defaults to 
+            "horror_guides_recursive".
+
+    Returns:
+        list[str]: A sorted list of unique game strings.
     """
     if collection_name not in _game_caches:
         col = _collections[collection_name]
@@ -367,16 +421,18 @@ def _get_all_games(collection_name: str = "horror_guides_recursive") -> list[str
 
 
 def _build_where_clause(game_filter: str | None, collection_name: str = "horror_guides_recursive") -> dict | None:
-    """
-    Build a ChromaDB 'where' filter dict from a base game name.
+    """Build a ChromaDB 'where' query filter dictionary for game scoping.
 
-    Handles DLC variants by prefix-matching against all known game names.
+    Automatically resolves parent base games to also match their DLC expansion 
+    prefixes in the metadata (using '$in' or '$eq' clauses).
 
     Args:
-        game_filter: Base game name, or None for unfiltered search.
+        game_filter (str | None): Base game name, or None if unfiltered.
+        collection_name (str, optional): Collection name. Defaults to 
+            "horror_guides_recursive".
 
     Returns:
-        ChromaDB where clause dict, or None if no filter should be applied.
+        dict | None: The ChromaDB compliant 'where' dictionary clause, or None.
     """
     if not game_filter:
         return None

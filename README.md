@@ -12,6 +12,45 @@ This knowledge is valuable and hard to find through official channels because ga
 
 ---
 
+## Getting Started & Running
+
+This system is built with Python, utilizing local `SentenceTransformer` embeddings, a `ChromaDB` vector database, and the `Groq API` for deterministic answer synthesis.
+
+### 1. Installation
+
+Install all required dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Environment Configuration
+
+Create a `.env` file in the root directory and add your Groq API key:
+```env
+GROQ_API_KEY=your_groq_api_key_here
+```
+*(You can obtain a free Groq API key at [console.groq.com](https://console.groq.com).)*
+
+### 3. Data Ingestion & Embedding
+
+To ingest the walkthrough markdown files under `documents/` and build the vector databases (both recursive and fixed strategies), execute:
+```bash
+python embed.py
+```
+To wipe and rebuild the collection from scratch:
+```bash
+python embed.py --rebuild
+```
+
+### 4. Running the Chat Terminal
+
+Launch the survival-horror Streamlit UI console:
+```bash
+streamlit run app.py
+```
+
+---
+
 ## Document Sources
 
 | # | Source | Type | URL or file path |
@@ -175,6 +214,13 @@ We created two parallel collections inside ChromaDB:
 Users can dynamically toggle between strategies in the sidebar dropdown. Comparing results shows:
 - **Recursive Header-Based Chunks:** Retain strong chapter and section keywords, yielding lower distance metrics on game-specific structural queries (e.g., "Where is the safe puzzle in Chapter 3?").
 - **Fixed-Size Chunks:** Perform well on contiguous narrative explanations but are prone to returning unrelated context when a chunk starts mid-sentence or cuts off key terms at boundary markers.
+
+## Demo Video & Interface
+
+### Walkthrough Recording
+You can watch the full walk-through video demonstrating the system features, query retrieval, conversational memory, and evaluation cases:
+
+<video src="screenshots/Screen Recording 2026-06-09 154630.mp4" controls width="100%"></video>
 
 ---
 

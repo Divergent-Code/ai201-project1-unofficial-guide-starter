@@ -21,17 +21,19 @@ FALLBACK_MODEL = "llama-3.1-8b-instant"
 
 
 def reformulate_query(query: str, chat_history: list[dict]) -> str:
-    """
-    Given a user's latest follow-up question and the chat history, rephrase it 
-    into a standalone search query. If there is no chat history, returns the query as-is.
+    """Rephrase user's follow-up question into a standalone query.
+
+    Uses a fast LLM (`llama-3.1-8b-instant`) to rewrite contextual queries 
+    (which may contain pronouns/references) into self-contained search terms. 
+    If there is no chat history, returns the query as-is.
 
     Args:
-        query:        The latest user message.
-        chat_history: List of dicts representing past chat turns:
-                      [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
+        query (str): The latest user message or query.
+        chat_history (list[dict]): A list of dictionaries representing past chat turns, 
+            where each dict contains 'role' and 'content' keys.
 
     Returns:
-        The standalone query string.
+        str: The standalone query string to be used for retrieval.
     """
     if not chat_history or not GROQ_API_KEY:
         return query
@@ -90,19 +92,26 @@ def generate_answer(
     retrieved_chunks: list[dict],
     chat_history: list[dict] | None = None,
 ) -> tuple[str, list[dict]]:
-    """
-    Generates an answer grounded strictly within the retrieved context passages using Groq,
-    optionally incorporating previous conversation context.
+    """Generate an answer grounded strictly in the retrieved context passages.
+
+    Applies strict system-prompt grounding constraints using the primary 
+    synthesis model `llama-3.3-70b-versatile`, with a fallback to `llama-3.1-8b-instant` 
+    if needed. Temperature is set to 0.0 to prevent hallucination.
 
     Args:
-        query:            The user's question.
-        retrieved_chunks: A list of retrieved chunk dicts (from retrieve.py).
-        chat_history:     Optional list of previous message dicts representing conversation history.
+        query (str): The user's question.
+        retrieved_chunks (list[dict]): List of retrieved chunk dictionaries.
+        chat_history (list[dict], optional): List of conversation turn dicts. 
+            Defaults to None.
+
+    Raises:
+        ValueError: If GROQ_API_KEY is not defined in the environment.
+        RuntimeError: If both primary and fallback API models fail to execute.
 
     Returns:
-        tuple (answer, sources)
-            - answer: The generated answer string.
-            - sources: The list of retrieved chunk dicts used as the context.
+        tuple[str, list[dict]]: A tuple containing:
+            - answer (str): The strictly grounded answer string.
+            - sources (list[dict]): The list of retrieved chunks used as references.
     """
     if not GROQ_API_KEY:
         raise ValueError(

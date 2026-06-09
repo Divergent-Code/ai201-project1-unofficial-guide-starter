@@ -34,16 +34,16 @@ DOCS_DIR = Path(__file__).parent / "documents"
 # ---------------------------------------------------------------------------
 
 def get_collection(client: chromadb.PersistentClient, collection_name: str, rebuild: bool = False):
-    """
-    Get or create a ChromaDB collection.
+    """Get or create a ChromaDB collection.
 
     Args:
-        client:  Connected ChromaDB persistent client.
-        collection_name: Name of the collection.
-        rebuild: If True, deletes and recreates the collection before use.
+        client (chromadb.PersistentClient): Connected ChromaDB persistent client.
+        collection_name (str): Name of the collection.
+        rebuild (bool, optional): If True, deletes and recreates the collection 
+            before use. Defaults to False.
 
     Returns:
-        ChromaDB Collection object.
+        chromadb.Collection: The ChromaDB Collection object.
     """
     if rebuild:
         try:
@@ -67,19 +67,17 @@ def embed_and_store(
     model: SentenceTransformer,
     collection,
 ) -> None:
-    """
-    Embed all chunks in batches and upsert into the ChromaDB collection.
+    """Embed all chunks in batches and upsert them into ChromaDB.
 
-    IDs are derived from source_file stem + chunk_index and are stable
-    across runs, so repeated calls are safe (upsert overwrites duplicates).
-
-    ChromaDB metadata values must be str, int, float, or bool — lists are
-    not allowed, so the 'tags' field from sidecar JSON is intentionally omitted.
+    IDs are derived from the source file stem and the chunk index (e.g. 
+    "file_00001") and are stable across runs, allowing safe repeated execution 
+    (upserting will overwrite matching IDs). Note that lists are not supported 
+    as metadata values in ChromaDB, so document tags are omitted.
 
     Args:
-        chunks:     List of chunk dicts from chunk_all_documents().
-        model:      Loaded SentenceTransformer model.
-        collection: ChromaDB collection to upsert into.
+        chunks (list[dict]): List of chunk dictionaries containing text and metadata keys.
+        model (SentenceTransformer): Loaded SentenceTransformer model.
+        collection (chromadb.Collection): ChromaDB collection object to write to.
     """
     total = len(chunks)
     print(f"\nEmbedding {total} chunks in batches of {BATCH_SIZE} into '{collection.name}'...")
@@ -125,6 +123,16 @@ def embed_and_store(
 # ---------------------------------------------------------------------------
 
 def main(rebuild: bool = False) -> None:
+    """Execute the full dual-strategy embedding and ingestion pipeline.
+
+    Loads the SentenceTransformer model, establishes a connection to the persistent 
+    ChromaDB client, chunks all files in the documents directory (using both 
+    recursive and fixed strategies), and stores them in respective collections.
+
+    Args:
+        rebuild (bool, optional): If True, existing collections are wiped and 
+            re-created from scratch. Defaults to False.
+    """
     print("=" * 60)
     print("  Horror Game RAG — Embedding Pipeline (Dual Strategy)")
     print("=" * 60)
