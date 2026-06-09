@@ -202,10 +202,9 @@ Below are 5 labeled sample chunks generated from `Amnesia_The_Dark_Descent_Compl
 ```
 
 ### 2. Standalone Retrieval Test
-Demonstrating hybrid retrieval (RRF) on a specific query.
+Demonstrating retrieval on 3 distinct queries. 
 
-**Query:** 'What happens if Daniel's sanity drops to zero?'
-
+**Query 1:** 'What happens if Daniel's sanity drops to zero?'
 - **Rank 1** [Distance: 0.4215]
   - **Game:** Amnesia: The Dark Descent (2010)
   - **Header:** Part 1: Introduction and Core Systems > Core Systems and Survival Tips > The Sanity System
@@ -214,19 +213,37 @@ Demonstrating hybrid retrieval (RRF) on a specific query.
 - **Rank 2** [Distance: 0.4682]
   - **Game:** Amnesia: The Dark Descent (2010)
   - **Header:** Part 1: Introduction and Core Systems > Core Systems and Survival Tips > The Sanity System
-  - **Source:** Amnesia_The_Dark_Descent_Complete_Walkthrough.md (Index: 6)
 - **Rank 3** [Distance: 0.5228]
   - **Game:** Amnesia: The Dark Descent (2010)
   - **Header:** Act IV: Orb Chamber > The Three Endings > Ending 2 — Agrippa's Ending (Secret Ending)
-  - **Source:** Amnesia_The_Dark_Descent_Complete_Walkthrough.md (Index: 149)
-- **Rank 4** [Distance: 0.4857]
-  - **Game:** Amnesia: The Dark Descent (2010)
-  - **Header:** Part 1: Introduction and Core Systems > Core Systems and Survival Tips > The Sanity System
-  - **Source:** Amnesia_The_Dark_Descent_Complete_Walkthrough.md (Index: 7)
-- **Rank 5** [Distance: 0.5457]
-  - **Game:** Amnesia: The Dark Descent (2010)
-  - **Header:** Act IV: Nave > Objective: Reach the Transept > The Nave Entry
-  - **Source:** Amnesia_The_Dark_Descent_Complete_Walkthrough.md (Index: 119)
+- **Explanation of Relevance:** The top 2 chunks retrieved correctly target "The Sanity System" section of the guide, which explicitly outlines the mechanical consequences of losing sanity (e.g., stumbling, falling, hallucinations). These chunks are highly relevant because they directly address the core game mechanic mentioned in the query.
+
+**Query 2:** 'Bloodstained Bracelet in Brookhaven Hospital'
+- **Rank 1** [Distance: 0.3622]
+  - **Game:** Silent Hill 2 Remake (2024)
+  - **Header:** Brookhaven Hospital
+  - **Source:** Silent_Hill_2_Remake_Complete_Walkthrough.md
+- **Rank 2** [Distance: 0.4907]
+  - **Game:** Silent Hill 2 Remake (2024)
+  - **Header:** Brookhaven Hospital
+- **Rank 3** [Distance: 0.5388]
+  - **Game:** Silent Hill 2 Remake (2024)
+  - **Header:** Puzzle Solutions > Bracelet Puzzle
+  - **Source:** Silent_Hill_2_Remake_Puzzles_and_Trophies_Guide.md
+- **Explanation of Relevance:** The retrieval system successfully identifies both the specific location in the general walkthrough ("Brookhaven Hospital") and the exact puzzle guide ("Bracelet Puzzle"). This demonstrates excellent relevance because resolving the "Bloodstained Bracelet" involves a specific puzzle located inside the hospital, both of which are correctly surfaced.
+
+**Query 3:** 'How do you defeat the Leviathan boss?'
+- **Rank 1** [Distance: 0.3117]
+  - **Game:** Dead Space (2008)
+  - **Header:** Chapter 6: Environmental Hazard > Objective: Kill the Leviathan > Third Boss Fight: The Leviathan
+  - **Source:** Dead_Space_Complete_Walkthrough.md
+- **Rank 2** [Distance: 0.3425]
+  - **Game:** Dead Space (2008)
+  - **Header:** Chapter 6: Environmental Hazard > Objective: Kill the Leviathan > Third Boss Fight: The Leviathan
+- **Rank 3** [Distance: 0.3906]
+  - **Game:** Dead Space (2008)
+  - **Header:** Part 1: Enemies and Bosses Reference > Bosses and Special Encounters > Leviathan
+  - **Source:** Dead_Space_Collectibles_and_Upgrade_Guide.md
 
 ### 3. Grounded Responses
 These responses demonstrate LLM generation strictly bound by the provided context chunks.
